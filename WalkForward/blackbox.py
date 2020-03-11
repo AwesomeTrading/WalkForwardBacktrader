@@ -3,6 +3,23 @@ import multiprocessing as mp
 import numpy as np
 import scipy.optimize as op
 
+# import threading
+# import psutil
+
+
+# def cpu_t(*args):
+#     p = psutil.#cpu_percent(interval=None, percpu=True)
+#     v = sum(p) / 72
+#     print(args[0], ":", v)
+#     return
+
+
+# def cpu(s="#cpu count"):
+#     pass
+#     # thread = threading.Thread(target=cpu_t, args=[s])
+#     # thread.setDaemon(True)
+#     # thread.start()
+
 
 def get_default_executor():
     """
@@ -20,7 +37,7 @@ def get_default_executor():
     Pool : executor-like object
         An object with context manager (__enter__, __exit__) and map method.
     """
-    if (sys.version_info > (3, 0)):
+    if sys.version_info > (3, 0):
         Pool = mp.Pool
         return Pool
     else:
@@ -33,12 +50,23 @@ def get_default_executor():
             pool = mp.Pool(*args, **kwargs)
             yield pool
             pool.terminate()
+
         return Pool
 
 
-def search(f, box, n, m, batch, resfile,
-           rho0=0.5, p=1.0, nrand=10000, nrand_frac=0.05,
-           executor=get_default_executor()):
+def search(
+    f,
+    box,
+    n,
+    m,
+    batch,
+    resfile,
+    rho0=0.5,
+    p=1.0,
+    nrand=10000,
+    nrand_frac=0.05,
+    executor=get_default_executor(),
+):
     """
     Minimize given expensive black-box function and save results into text file.
 
@@ -81,70 +109,121 @@ def search(f, box, n, m, batch, resfile,
 
     # go from normalized values (unit cube) to absolute values (box)
     def cubetobox(x):
-        return [box[i][0]+(box[i][1]-box[i][0])*x[i] for i in range(d)]
+        return [box[i][0] + (box[i][1] - box[i][0]) * x[i] for i in range(d)]
 
     # generating latin hypercube
-    points = np.zeros((n, d+1))
+    points = np.zeros((n, d + 1))
     points[:, 0:-1] = latin(n, d)
 
     # initial sampling
-    for i in range(n//batch):
+    for i in range(n // batch):
         with executor() as e:
-            points[batch*i:batch*(i+1), -1] = list(e.map(f, list(map(cubetobox, points[batch*i:batch*(i+1), 0:-1]))))
+            points[batch * i : batch * (i + 1), -1] = list(
+                e.map(
+                    f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1]))
+                )
+            )
 
     # normalizing function values
     fmax = max(abs(points[:, -1]))
-    points[:, -1] = points[:, -1]/fmax
+    points[:, -1] = points[:, -1] / fmax
 
     # volume of d-dimensional ball (r = 1)
     if d % 2 == 0:
-        v1 = np.pi**(d/2)/np.math.factorial(d/2)
+        v1 = np.pi ** (d / 2) / np.math.factorial(d / 2)
     else:
-        v1 = 2*(4*np.pi)**((d-1)/2)*np.math.factorial((d-1)/2)/np.math.factorial(d)
+        v1 = (
+            2
+            * (4 * np.pi) ** ((d - 1) / 2)
+            * np.math.factorial((d - 1) / 2)
+            / np.math.factorial(d)
+        )
 
     # subsequent iterations (current subsequent iteration = i*batch+j)
     T = np.identity(d)
 
-    for i in range(m//batch):
+    for i in range(m // batch):
 
         # refining scaling matrix T
         if d > 1:
             fit_noscale = rbf(points, np.identity(d))
-            population = np.zeros((nrand, d+1))
+            population = np.zeros((nrand, d + 1))
             population[:, 0:-1] = np.random.rand(nrand, d)
             population[:, -1] = list(map(fit_noscale, population[:, 0:-1]))
 
-            cloud = population[population[:, -1].argsort()][0:int(nrand*nrand_frac), 0:-1]
+            cloud = population[population[:, -1].argsort()][
+                0 : int(nrand * nrand_frac), 0:-1
+            ]
             eigval, eigvec = np.linalg.eig(np.cov(np.transpose(cloud)))
-            T = [eigvec[:, j]/np.sqrt(eigval[j]) for j in range(d)]
-            T = T/np.linalg.norm(T)
+            T = [eigvec[:, j] / np.sqrt(eigval[j]) for j in range(d)]
+            T = T / np.linalg.norm(T)
 
         # sampling next batch of points
         fit = rbf(points, T)
-        points = np.append(points, np.zeros((batch, d+1)), axis=0)
+        points = np.append(points, np.zeros((batch, d + 1)), axis=0)
 
         for j in range(batch):
-            r = ((rho0*((m-1.-(i*batch+j))/(m-1.))**p)/(v1*(n+i*batch+j)))**(1./d)
-            cons = [{'type': 'ineq', 'fun': lambda x, localk=k: np.linalg.norm(np.subtract(x, points[localk, 0:-1])) - r}
-                    for k in range(n+i*batch+j)]
+            r = (
+                (rho0 * ((m - 1.0 - (i * batch + j)) / (m - 1.0)) ** p)
+                / (v1 * (n + i * batch + j))
+            ) ** (1.0 / d)
+            cons = [
+                {
+                    "type": "ineq",
+                    "fun": lambda x, localk=k: np.linalg.norm(
+                        np.subtract(x, points[localk, 0:-1])
+                    )
+                    - r,
+                }
+                for k in range(n + i * batch + j)
+            ]
             while True:
-                minfit = op.minimize(fit, np.random.rand(d), method='SLSQP', bounds=[[0., 1.]]*d, constraints=cons)
+                minfit = op.minimize(
+                    fit,
+                    np.random.rand(d),
+                    method="SLSQP",
+                    bounds=[[0.0, 1.0]] * d,
+                    constraints=cons,
+                )
                 if np.isnan(minfit.x)[0] == False:
                     break
-            points[n+i*batch+j, 0:-1] = np.copy(minfit.x)
+            points[n + i * batch + j, 0:-1] = np.copy(minfit.x)
 
         with executor() as e:
-            points[n+batch*i:n+batch*(i+1), -1] = list(e.map(f, list(map(cubetobox, points[n+batch*i:n+batch*(i+1), 0:-1]))))/fmax
+            points[n + batch * i : n + batch * (i + 1), -1] = (
+                list(
+                    e.map(
+                        f,
+                        list(
+                            map(
+                                cubetobox,
+                                points[n + batch * i : n + batch * (i + 1), 0:-1],
+                            )
+                        ),
+                    )
+                )
+                / fmax
+            )
 
     # saving results into text file
     points[:, 0:-1] = list(map(cubetobox, points[:, 0:-1]))
-    points[:, -1] = points[:, -1]*fmax
+    points[:, -1] = points[:, -1] * fmax
     points = points[points[:, -1].argsort()]
 
-    labels = [' par_'+str(i+1)+(7-len(str(i+1)))*' '+',' for i in range(d)]+[' f_value    ']
+    labels = [
+        " par_" + str(i + 1) + (7 - len(str(i + 1))) * " " + "," for i in range(d)
+    ] + [" f_value    "]
     print(points)
-    np.savetxt(resfile, points, delimiter=',', fmt=' %+1.4e', header=''.join(labels), comments='')
+    np.savetxt(
+        resfile,
+        points,
+        delimiter=",",
+        fmt=" %+1.4e",
+        header="".join(labels),
+        comments="",
+    )
     return points
+
 
 def latin(n, d):
     """
@@ -164,10 +243,15 @@ def latin(n, d):
     """
     # spread function
     def spread(points):
-        return sum(1./np.linalg.norm(np.subtract(points[i], points[j])) for i in range(n) for j in range(n) if i > j)
+        return sum(
+            1.0 / np.linalg.norm(np.subtract(points[i], points[j]))
+            for i in range(n)
+            for j in range(n)
+            if i > j
+        )
 
     # starting with diagonal shape
-    lh = [[i/(n-1.)]*d for i in range(n)]
+    lh = [[i / (n - 1.0)] * d for i in range(n)]
 
     # minimizing spread function by shuffling
     minspread = spread(lh)
@@ -205,30 +289,45 @@ def rbf(points, T):
         Function that returns the value of the RBF-fit at a given point.
     """
     n = len(points)
-    d = len(points[0])-1
+    d = len(points[0]) - 1
 
     def phi(r):
-        return r*r*r
+        return r * r * r
 
-    Phi = [[phi(np.linalg.norm(np.dot(T, np.subtract(points[i, 0:-1], points[j, 0:-1])))) for j in range(n)] for i in range(n)]
+    Phi = [
+        [
+            phi(
+                np.linalg.norm(np.dot(T, np.subtract(points[i, 0:-1], points[j, 0:-1])))
+            )
+            for j in range(n)
+        ]
+        for i in range(n)
+    ]
 
-    P = np.ones((n, d+1))
+    P = np.ones((n, d + 1))
     P[:, 0:-1] = points[:, 0:-1]
 
     F = points[:, -1]
 
-    M = np.zeros((n+d+1, n+d+1))
+    M = np.zeros((n + d + 1, n + d + 1))
     M[0:n, 0:n] = Phi
-    M[0:n, n:n+d+1] = P
-    M[n:n+d+1, 0:n] = np.transpose(P)
+    M[0:n, n : n + d + 1] = P
+    M[n : n + d + 1, 0:n] = np.transpose(P)
 
-    v = np.zeros(n+d+1)
+    v = np.zeros(n + d + 1)
     v[0:n] = F
 
     sol = np.linalg.solve(M, v)
-    lam, b, a = sol[0:n], sol[n:n+d], sol[n+d]
+    lam, b, a = sol[0:n], sol[n : n + d], sol[n + d]
 
     def fit(x):
-        return sum(lam[i]*phi(np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1])))) for i in range(n)) + np.dot(b, x) + a
+        return (
+            sum(
+                lam[i] * phi(np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1]))))
+                for i in range(n)
+            )
+            + np.dot(b, x)
+            + a
+        )
 
     return fit
