@@ -14,8 +14,8 @@ import backtrader.strategies as btstrats
 import itertools
 
 # from IPython.display import display, HTML
-import matplotlib.pyplot as plt
-import matplotlib.dates as mpdates
+# import matplotlib.pyplot as plt
+# import matplotlib.dates as mpdates
 import time
 from datetime import timedelta
 import datetime
@@ -27,6 +27,8 @@ from backtrader import Indicator
 import os
 
 import threading
+
+plotting = False
 
 time_start = datetime.datetime.now()
 
@@ -88,14 +90,12 @@ class LinearRegression(Indicator):
         if self.iter > self.params.len:
             raw_prices = self.data.get(size=self.params.len)
             prices = np.array(raw_prices).reshape(-1, 1)
-            x_line = np.array(
-                [i for i in range(0, self.params.len)]).reshape(-1, 1)
+            x_line = np.array([i for i in range(0, self.params.len)]).reshape(-1, 1)
             # Create linear regression object
             regr = linear_model.LinearRegression()
             # Train the model using the training sets
             regr.fit(x_line, prices)
-            prediction = regr.predict(
-                np.array([self.params.len]).reshape(-1, 1))
+            prediction = regr.predict(np.array([self.params.len]).reshape(-1, 1))
             self.lines.linear_regression[0] = prediction
         self.iter += 1
 
@@ -123,8 +123,7 @@ class MyStrategy(bt.Strategy):
         if self.sorted_params[self.interval_index][0] < time_now:
             self.interval_index += 1
             self.log(
-                "Params changed to : " +
-                str(self.sorted_params[self.interval_index][1])
+                "Params changed to : " + str(self.sorted_params[self.interval_index][1])
             )
         return self.sorted_params[self.interval_index][1]
 
@@ -148,13 +147,11 @@ class MyStrategy(bt.Strategy):
             self.size_to_buy = int(
                 (self.broker.getvalue() - self.cash_buffer) / self.dataclose[0]
             )
-            self.order = self.buy(
-                exectype=bt.Order.Market, size=self.size_to_buy)
+            self.order = self.buy(exectype=bt.Order.Market, size=self.size_to_buy)
             self.long = True
 
         elif self.LR_low_trend_to_use > self.data.close and self.long:
-            self.order = self.sell(
-                exectype=bt.Order.Market, size=self.size_to_buy)
+            self.order = self.sell(exectype=bt.Order.Market, size=self.size_to_buy)
             self.long = False
 
 
@@ -263,10 +260,10 @@ def RunBackTest(
         percentage_pnl = (total_pnl / used_capital) * 100
         max_drawdown = drawdown_analysis["max"]["drawdown"]
         calmarratio = percentage_pnl / math.sqrt((1 + max_drawdown))
-        if shouldPlot:
+        if shouldPlot and plotting:
             thread = threading.Thread(
-                target=cerebro.plot,
-                kwargs=dict(iplot=False, style="candle"))
+                target=cerebro.plot, kwargs=dict(iplot=False, style="candle")
+            )
             thread.setDaemon(True)
             thread.start()
             # cerebro.plot(iplot=False, style="candle")  # ,style='line')
@@ -297,8 +294,6 @@ tend = time.mktime(time.strptime("10.03.2019 11:05:02", "%d.%m.%Y %H:%M:%S"))
 
 interval_params_one_time = time.mktime(
     time.strptime("01.02.2019 21:05:02", "%d.%m.%Y %H:%M:%S")
-
-
 )
 interval_params_one = {}
 interval_params_one["linear_reg_length"] = 300
@@ -335,8 +330,7 @@ limitedEntryTestResult = RunBackTest(
 
 print("limitedEntryTestResult win_ratio:", limitedEntryTestResult["win_ratio"])
 print("PnL: " + str(limitedEntryTestResult["percentage_pnl"]) + "%")
-print("limitedEntryTestResult sharperatio:",
-      limitedEntryTestResult["sharperatio"])
+print("limitedEntryTestResult sharperatio:", limitedEntryTestResult["sharperatio"])
 
 
 def get_params_to_optimize_ranges(optimization_params, tstart, tend):
@@ -383,12 +377,10 @@ def BlackBoxParallelWalkForwardAnalysis(
 
         # Get the optimized params
         optimization_start_date_key = str(
-            time.strftime("%Y-%m-%d %H:%M:%S",
-                          time.localtime(optimization_start_date))
+            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(optimization_start_date))
         )
         optimization_end_date_key = str(
-            time.strftime("%Y-%m-%d %H:%M:%S",
-                          time.localtime(optimization_end_date))
+            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(optimization_end_date))
         )
         optimization_key = optimization_start_date_key + "_" + optimization_end_date_key
         print()
@@ -430,14 +422,12 @@ def BlackBoxParallelWalkForwardAnalysis(
         print(
             "testing start date: "
             + str(
-                time.strftime("%Y-%m-%d %H:%M:%S",
-                              time.localtime(testing_start_date))
+                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(testing_start_date))
             )
         )
         print(
             "testing end date: "
-            + str(time.strftime("%Y-%m-%d %H:%M:%S",
-                                time.localtime(testing_end_date)))
+            + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(testing_end_date)))
         )
 
         if unanchored:
@@ -516,17 +506,14 @@ def getIntervalParamsFromOptimizedParams(
         )
         out_of_sample_start_date = optimization_end_date
         out_of_sample_end_date = out_of_sample_start_date + out_of_sample_period
-        optimized_params_for_this_run = getOptimizedParamsBlackBox(
-            optimized_params)
+        optimized_params_for_this_run = getOptimizedParamsBlackBox(optimized_params)
 
         # This takes the first one and then never updates.
         if out_of_sample_start_date_with_buffer == 0:
             # We need a warm start for the indicators to get ready.
-            max_lookback_buffer_param = max(
-                optimized_params_for_this_run.values())
+            max_lookback_buffer_param = max(optimized_params_for_this_run.values())
             needed_lookback_buffer_in_seconds = (
-                max_lookback_buffer_param *
-                candle_freq_to_seconds_map[candle_freq]
+                max_lookback_buffer_param * candle_freq_to_seconds_map[candle_freq]
             )
 
             out_of_sample_start_date_with_buffer = (
@@ -535,8 +522,7 @@ def getIntervalParamsFromOptimizedParams(
             out_of_sample_start_date_to_log = out_of_sample_start_date
         # This updates everytime and ends up with the last iteration.
         end_date = out_of_sample_end_date
-        interval_params.append(
-            (out_of_sample_end_date, optimized_params_for_this_run))
+        interval_params.append((out_of_sample_end_date, optimized_params_for_this_run))
     return [
         interval_params,
         out_of_sample_start_date_with_buffer,
@@ -570,8 +556,7 @@ def generateAlternateOutOfSampleResultsWithInterval(
         optimized_params_for_this_run["slippage"] = 0.001
 
         out_of_sample_end_date_key = str(
-            time.strftime("%Y-%m-%d %H:%M:%S",
-                          time.localtime(out_of_sample_end_date))
+            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(out_of_sample_end_date))
         )
 
         out_of_sample_start_date_with_buffer_key = str(
@@ -581,8 +566,7 @@ def generateAlternateOutOfSampleResultsWithInterval(
             )
         )
         out_of_sample_start_date_key = str(
-            time.strftime("%Y-%m-%d %H:%M:%S",
-                          time.localtime(out_of_sample_start_date))
+            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(out_of_sample_start_date))
         )
 
         out_of_sample_key = (
@@ -603,8 +587,7 @@ def generateAlternateOutOfSampleResultsWithInterval(
         print("The interval end dates and params are: ")
         for param in out_of_sample_interval_params_for_this_run:
             print(
-                str(time.strftime("%Y-%m-%d %H:%M:%S",
-                                  time.localtime(param[0]))),
+                str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(param[0]))),
                 param[1],
             )
 
@@ -616,8 +599,7 @@ def generateAlternateOutOfSampleResultsWithInterval(
             + str(i)
             + "th param has finished!"
         )
-        print("Buffered Start Date was : " +
-              out_of_sample_start_date_with_buffer_key)
+        print("Buffered Start Date was : " + out_of_sample_start_date_with_buffer_key)
         print()
         print("***********************************")
         print()
@@ -626,8 +608,7 @@ def generateAlternateOutOfSampleResultsWithInterval(
         out_of_sample_results.append(out_of_sample_result)
     return out_of_sample_results
 
-    tstart = time.mktime(time.strptime(
-        "20.01.2018 00:00:00", "%d.%m.%Y %H:%M:%S"))
+    tstart = time.mktime(time.strptime("20.01.2018 00:00:00", "%d.%m.%Y %H:%M:%S"))
 
 
 tend = time.mktime(time.strptime("10.03.2019 11:05:02", "%d.%m.%Y %H:%M:%S"))
@@ -690,26 +671,24 @@ for ind, result in enumerate(interval_results_lastyear):
             (np.array(result[key]["value_anlaysis"]) - capital) / capital
         ) * 100
         end_values.append(value_to_plot[-1])
-        plt.plot(value_to_plot, label="equity_curve" + str(ind))
+        if plotting:
+            plt.plot(value_to_plot, label="equity_curve" + str(ind))
 
 print("Total time:", datetime.datetime.now() - time_start)
 
+if plotting:
+    plt.legend()
+    thread = threading.Thread(target=plt.show)
+    thread.setDaemon(True)
+    thread.start()
+    # plt.show()
 
-plt.legend()
-thread = threading.Thread(
-    target=plt.show)
-thread.setDaemon(True)
-thread.start()
-# plt.show()
-
-
-plt.figure()
-plt.plot(end_values, "*")
-thread = threading.Thread(
-    target=plt.show)
-thread.setDaemon(True)
-thread.start()
-# plt.show()
+    plt.figure()
+    plt.plot(end_values, "*")
+    thread = threading.Thread(target=plt.show)
+    thread.setDaemon(True)
+    thread.start()
+    # plt.show()
 
 
 print(end_values)

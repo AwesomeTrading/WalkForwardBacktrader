@@ -5,6 +5,7 @@ import scipy.optimize as op
 
 # import threading
 # import psutil
+from numba import jit, njit
 
 
 # def cpu_t(*args):
@@ -54,6 +55,11 @@ def get_default_executor():
         return Pool
 
 
+# @jit()
+# def cubetobox(x, d, box):
+#     return [box[i][0] + (box[i][1] - box[i][0]) * x[i] for i in range(d)]
+
+
 def search(
     f,
     box,
@@ -101,6 +107,7 @@ def search(
     d = len(box)
 
     # adjusting the number of function calls to the batch size
+    print("adjusting the number of function calls to the batch size")
     if n % batch != 0:
         n = n - n % batch + batch
 
@@ -112,10 +119,12 @@ def search(
         return [box[i][0] + (box[i][1] - box[i][0]) * x[i] for i in range(d)]
 
     # generating latin hypercube
+    print("generating latin hypercube")
     points = np.zeros((n, d + 1))
     points[:, 0:-1] = latin(n, d)
 
     # initial sampling
+    print("initial sampling")
     for i in range(n // batch):
         with executor() as e:
             points[batch * i : batch * (i + 1), -1] = list(
@@ -125,6 +134,7 @@ def search(
             )
 
     # normalizing function values
+    print("normalizing function values")
     fmax = max(abs(points[:, -1]))
     points[:, -1] = points[:, -1] / fmax
 
@@ -225,6 +235,37 @@ def search(
     return points
 
 
+# spread function
+@jit()
+def spread(points, n):
+    # print(points)
+    # s = sum(
+    # f = 1.0 / np.linalg.norm(np.subtract(points[0], points[1]))
+    # i = 2
+    # j = 1
+    # s = np.sum(
+    #     1.0
+    #     / np.linalg.norm(np.subtract(points[i], points[j]))
+    #     # for i in range(n)
+    #     # for j in range(n)
+    #     # if i > j
+    # )
+
+    # f = 1.0 / np.linalg.norm(np.subtract(points[0], points[1]))
+
+    r = np.array([0.2])
+    r = np.delete(r, 0)
+    for i in range(n):
+        for j in range(n):
+            if i > j:
+                r = np.append(
+                    r, 1.0 / np.linalg.norm(np.subtract(points[i], points[j]))
+                )
+    s = np.sum(r)
+    return s
+
+
+# @jit(forceobj=True)
 def latin(n, d):
     """
     Build latin hypercube.
@@ -241,33 +282,39 @@ def latin(n, d):
     lh : ndarray
         Array of points uniformly placed in d-dimensional unit cube.
     """
-    # spread function
-    def spread(points):
-        return sum(
-            1.0 / np.linalg.norm(np.subtract(points[i], points[j]))
-            for i in range(n)
-            for j in range(n)
-            if i > j
-        )
+    # # spread function
+    # def spread(points):
+    #     return sum(
+    #         1.0 / np.linalg.norm(np.subtract(points[i], points[j]))
+    #         for i in range(n)
+    #         for j in range(n)
+    #         # if i > j
+    #     )
 
     # starting with diagonal shape
-    lh = [[i / (n - 1.0)] * d for i in range(n)]
+    # lh = [[i / (n - 1.0)] * d for i in range(n)]
+    lh = np.array([[i / (n - 1.0)] * d for i in range(n)])
 
     # minimizing spread function by shuffling
-    minspread = spread(lh)
+    minspread = spread(lh, n)
 
-    for i in range(1000):
+    c = 1000
+    i = 0
+    # for i in range(1000):
+    while i < c:
         point1 = np.random.randint(n)
         point2 = np.random.randint(n)
         dim = np.random.randint(d)
 
         newlh = np.copy(lh)
         newlh[point1, dim], newlh[point2, dim] = newlh[point2, dim], newlh[point1, dim]
-        newspread = spread(newlh)
+        newspread = spread(newlh, n)
 
         if newspread < minspread:
             lh = np.copy(newlh)
             minspread = newspread
+
+        i += 1
 
     return lh
 
