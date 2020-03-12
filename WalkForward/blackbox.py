@@ -154,22 +154,21 @@ def search(
 
     for i in range(m // batch):
 
-        # # refining scaling matrix T
-        # print("refining scaling matrix T")
-        # if d > 1:
-        #     fit_noscale = rbf(points, np.identity(d))
-        #     population = np.zeros((nrand, d + 1))
-        #     population[:, 0:-1] = np.random.rand(nrand, d)
-        #     population[:, -1] = list(map(fit_noscale, population[:, 0:-1]))
+        # refining scaling matrix T
+        print("refining scaling matrix T")
+        if d > 1:
+            fit_noscale = rbf(points, np.identity(d))
+            population = np.zeros((nrand, d + 1))
+            population[:, 0:-1] = np.random.rand(nrand, d)
+            # population[:, -1] = list(map(fit_noscale, population[:, 0:-1]))
+            population[:, -1] = fns(fit_noscale, population)
 
-        #     cloud = population[population[:, -1].argsort()][
-        #         0 : int(nrand * nrand_frac), 0:-1
-        #     ]
-        #     eigval, eigvec = np.linalg.eig(np.cov(np.transpose(cloud)))
-        #     T = [eigvec[:, j] / np.sqrt(eigval[j]) for j in range(d)]
-        #     T = T / np.linalg.norm(T)
-
-        ref_S(d, points, nrand, nrand_frac)
+            cloud = population[population[:, -1].argsort()][
+                0 : int(nrand * nrand_frac), 0:-1
+            ]
+            eigval, eigvec = np.linalg.eig(np.cov(np.transpose(cloud)))
+            T = [eigvec[:, j] / np.sqrt(eigval[j]) for j in range(d)]
+            T = T / np.linalg.norm(T)
 
         # sampling next batch of points
         print("sampling next batch of points")
@@ -241,38 +240,12 @@ def search(
     return points
 
 
-def ref_S(d, points, nrand, nrand_frac):
-    # refining scaling matrix T
-    print("refining scaling matrix T")
-    if d > 1:
-        fit_noscale = rbf(points, np.identity(d))
-        population = np.zeros((nrand, d + 1))
-        population[:, 0:-1] = np.random.rand(nrand, d)
-        # population[:, -1] = list(map(fit_noscale, population[:, 0:-1]))
-        population[:, -1] = fns(fit_noscale, population)
-        cloud = population[population[:, -1].argsort()][
-            0 : int(nrand * nrand_frac), 0:-1
-        ]
-        eigval, eigvec = np.linalg.eig(np.cov(np.transpose(cloud)))
-        T = [eigvec[:, j] / np.sqrt(eigval[j]) for j in range(d)]
-        T = T / np.linalg.norm(T)
-
-
 # @jit(parallel=True)
 # @jit()
 def fns(fit_noscale, population):
-    # # r = np.array([0.2])
-    # # r = np.delete(r, 0)
-    # p = np.array(population[:, 0:-1])
-    # print("----------------", p)
-    # vfunc = np.vectorize(fit_noscale)
-    # print(1)
-    # r = vfunc(p)
-    # print(2)
     print(14)
     r = list(map(fit_noscale, population[:, 0:-1]))
     print(15)
-    # print("ooooooo", r)
     return r
 
 
@@ -427,32 +400,7 @@ def rbf(points, T):
         s = np.sum(r) + np.dot(b, x) + a
         return s
 
-    #     return (
-    #         sum(
-    #             lam[i] * phi(np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1]))))
-    #             for i in range(n)
-    #         )
-    #         + np.dot(b, x)
-    #         + a
-    #     )
-
-    # r = np.array([0.2])
-    # r = np.delete(r, 0)
-    # for i in range(n):
-    #     for j in range(n):
-    #         if i > j:
-    #             r = np.append(
-    #                 r, 1.0 / np.linalg.norm(np.subtract(points[i], points[j]))
-    #             )
-    # s = np.sum(r)
-
     print(13)
     xx = fit
     return xx
-
-
-# @jit()
-# def t_p(P):
-#     x = np.transpose(P)
-#     return x
 
