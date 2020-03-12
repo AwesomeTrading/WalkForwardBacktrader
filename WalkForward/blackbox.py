@@ -5,8 +5,7 @@ import scipy.optimize as op
 
 # import threading
 # import psutil
-from numba import jit, njit
-
+from numba import jit, njit, int64, float64
 
 # def cpu_t(*args):
 #     p = psutil.#cpu_percent(interval=None, percpu=True)
@@ -150,25 +149,30 @@ def search(
         )
 
     # subsequent iterations (current subsequent iteration = i*batch+j)
+    print("subsequent iterations (current subsequent iteration = i*batch+j)")
     T = np.identity(d)
 
     for i in range(m // batch):
 
-        # refining scaling matrix T
-        if d > 1:
-            fit_noscale = rbf(points, np.identity(d))
-            population = np.zeros((nrand, d + 1))
-            population[:, 0:-1] = np.random.rand(nrand, d)
-            population[:, -1] = list(map(fit_noscale, population[:, 0:-1]))
+        # # refining scaling matrix T
+        # print("refining scaling matrix T")
+        # if d > 1:
+        #     fit_noscale = rbf(points, np.identity(d))
+        #     population = np.zeros((nrand, d + 1))
+        #     population[:, 0:-1] = np.random.rand(nrand, d)
+        #     population[:, -1] = list(map(fit_noscale, population[:, 0:-1]))
 
-            cloud = population[population[:, -1].argsort()][
-                0 : int(nrand * nrand_frac), 0:-1
-            ]
-            eigval, eigvec = np.linalg.eig(np.cov(np.transpose(cloud)))
-            T = [eigvec[:, j] / np.sqrt(eigval[j]) for j in range(d)]
-            T = T / np.linalg.norm(T)
+        #     cloud = population[population[:, -1].argsort()][
+        #         0 : int(nrand * nrand_frac), 0:-1
+        #     ]
+        #     eigval, eigvec = np.linalg.eig(np.cov(np.transpose(cloud)))
+        #     T = [eigvec[:, j] / np.sqrt(eigval[j]) for j in range(d)]
+        #     T = T / np.linalg.norm(T)
+
+        ref_S(d, points, nrand, nrand_frac)
 
         # sampling next batch of points
+        print("sampling next batch of points")
         fit = rbf(points, T)
         points = np.append(points, np.zeros((batch, d + 1)), axis=0)
 
@@ -199,6 +203,7 @@ def search(
                     break
             points[n + i * batch + j, 0:-1] = np.copy(minfit.x)
 
+        print(" with executor() as e:")
         with executor() as e:
             points[n + batch * i : n + batch * (i + 1), -1] = (
                 list(
@@ -216,6 +221,7 @@ def search(
             )
 
     # saving results into text file
+    print("saving results into text file")
     points[:, 0:-1] = list(map(cubetobox, points[:, 0:-1]))
     points[:, -1] = points[:, -1] * fmax
     points = points[points[:, -1].argsort()]
@@ -235,7 +241,43 @@ def search(
     return points
 
 
+def ref_S(d, points, nrand, nrand_frac):
+    # refining scaling matrix T
+    print("refining scaling matrix T")
+    if d > 1:
+        fit_noscale = rbf(points, np.identity(d))
+        population = np.zeros((nrand, d + 1))
+        population[:, 0:-1] = np.random.rand(nrand, d)
+        # population[:, -1] = list(map(fit_noscale, population[:, 0:-1]))
+        population[:, -1] = fns(fit_noscale, population)
+        cloud = population[population[:, -1].argsort()][
+            0 : int(nrand * nrand_frac), 0:-1
+        ]
+        eigval, eigvec = np.linalg.eig(np.cov(np.transpose(cloud)))
+        T = [eigvec[:, j] / np.sqrt(eigval[j]) for j in range(d)]
+        T = T / np.linalg.norm(T)
+
+
+# @jit(parallel=True)
+# @jit()
+def fns(fit_noscale, population):
+    # # r = np.array([0.2])
+    # # r = np.delete(r, 0)
+    # p = np.array(population[:, 0:-1])
+    # print("----------------", p)
+    # vfunc = np.vectorize(fit_noscale)
+    # print(1)
+    # r = vfunc(p)
+    # print(2)
+    print(14)
+    r = list(map(fit_noscale, population[:, 0:-1]))
+    print(15)
+    # print("ooooooo", r)
+    return r
+
+
 # spread function
+# @jit(float64(int64, int64))
 @jit()
 def spread(points, n):
     # print(points)
@@ -262,10 +304,12 @@ def spread(points, n):
                     r, 1.0 / np.linalg.norm(np.subtract(points[i], points[j]))
                 )
     s = np.sum(r)
+
     return s
 
 
-# @jit(forceobj=True)
+@jit(forceobj=True)
+# @jit()
 def latin(n, d):
     """
     Build latin hypercube.
@@ -296,12 +340,10 @@ def latin(n, d):
     lh = np.array([[i / (n - 1.0)] * d for i in range(n)])
 
     # minimizing spread function by shuffling
+
     minspread = spread(lh, n)
 
-    c = 1000
-    i = 0
-    # for i in range(1000):
-    while i < c:
+    for i in range(1000):
         point1 = np.random.randint(n)
         point2 = np.random.randint(n)
         dim = np.random.randint(d)
@@ -335,12 +377,14 @@ def rbf(points, T):
     fit : callable
         Function that returns the value of the RBF-fit at a given point.
     """
+    print("rbf")
     n = len(points)
     d = len(points[0]) - 1
 
     def phi(r):
         return r * r * r
 
+    print(1)
     Phi = [
         [
             phi(
@@ -351,30 +395,83 @@ def rbf(points, T):
         for i in range(n)
     ]
 
+    print(2)
     P = np.ones((n, d + 1))
+    print(3)
     P[:, 0:-1] = points[:, 0:-1]
-
+    print(4)
     F = points[:, -1]
-
+    print(5)
     M = np.zeros((n + d + 1, n + d + 1))
+    print(6)
     M[0:n, 0:n] = Phi
+    print(7)
     M[0:n, n : n + d + 1] = P
+    print(8)
     M[n : n + d + 1, 0:n] = np.transpose(P)
-
+    print(9)
     v = np.zeros(n + d + 1)
+    print(10)
     v[0:n] = F
-
+    print(11)
     sol = np.linalg.solve(M, v)
+    print(12)
     lam, b, a = sol[0:n], sol[n : n + d], sol[n + d]
 
-    def fit(x):
-        return (
-            sum(
-                lam[i] * phi(np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1]))))
-                for i in range(n)
-            )
-            + np.dot(b, x)
-            + a
-        )
+    # def fit(x):
+    #     return (
+    #         sum(
+    #             lam[i] * phi(np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1]))))
+    #             for i in range(n)
+    #         )
+    #         + np.dot(b, x)
+    #         + a
+    #     )
 
-    return fit
+    @jit()
+    def fit(x):
+        r = np.array([0.2])
+        r = np.delete(r, 0)
+        for i in range(n):
+            r = np.append(
+                r,
+                lam[i]
+                # * phi(np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1])))),
+                * (
+                    np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1])))
+                    * np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1])))
+                    * np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1])))
+                ),
+            )
+        s = np.sum(r) + np.dot(b, x) + a
+        return s
+
+    #     return (
+    #         sum(
+    #             lam[i] * phi(np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1]))))
+    #             for i in range(n)
+    #         )
+    #         + np.dot(b, x)
+    #         + a
+    #     )
+
+    # r = np.array([0.2])
+    # r = np.delete(r, 0)
+    # for i in range(n):
+    #     for j in range(n):
+    #         if i > j:
+    #             r = np.append(
+    #                 r, 1.0 / np.linalg.norm(np.subtract(points[i], points[j]))
+    #             )
+    # s = np.sum(r)
+
+    print(13)
+    xx = fit
+    return xx
+
+
+# @jit()
+# def t_p(P):
+#     x = np.transpose(P)
+#     return x
+
