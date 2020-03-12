@@ -278,34 +278,15 @@ def fns(fit_noscale, population):
 
 # spread function
 # @jit(float64(int64, int64))
+# @jit(parallel=True)
 @jit()
 def spread(points, n):
-    # print(points)
-    # s = sum(
-    # f = 1.0 / np.linalg.norm(np.subtract(points[0], points[1]))
-    # i = 2
-    # j = 1
-    # s = np.sum(
-    #     1.0
-    #     / np.linalg.norm(np.subtract(points[i], points[j]))
-    #     # for i in range(n)
-    #     # for j in range(n)
-    #     # if i > j
-    # )
-
-    # f = 1.0 / np.linalg.norm(np.subtract(points[0], points[1]))
-
-    r = np.array([0.2])
-    r = np.delete(r, 0)
+    r = np.float64(0.0)
     for i in range(n):
         for j in range(n):
             if i > j:
-                r = np.append(
-                    r, 1.0 / np.linalg.norm(np.subtract(points[i], points[j]))
-                )
-    s = np.sum(r)
-
-    return s
+                r = r + 1.0 / np.linalg.norm(np.subtract(points[i], points[j]))
+    return r
 
 
 @jit(forceobj=True)
