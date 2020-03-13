@@ -2,13 +2,11 @@ import sys
 import multiprocessing as mp
 import numpy as np
 import scipy.optimize as op
-import datetime
+import ray
 
 # import threading
 # import psutil
 from numba import jit, njit, int64, float64
-
-# import ray
 
 # def cpu_t(*args):
 #     p = psutil.#cpu_percent(interval=None, percpu=True)
@@ -24,35 +22,6 @@ from numba import jit, njit, int64, float64
 #     # thread.start()
 
 # ray.init()
-
-# when installing conda statsmodels, i get 100% cpu, but its not really fatser
-# TODO make sure the values with numba are the same as without
-# TODO try ray
-
-
-class Ti:
-
-    cum = 0
-
-    def __init__(self):
-        pass
-
-    def start(self):
-        self.s = datetime.datetime.now()
-
-    def stop(self):
-        self.e = datetime.datetime.now() - self.s
-        self.e = self.e.total_seconds()
-        self.cum = self.cum + self.e
-        return self.e
-
-    def reset(self):
-        self.cum = 0
-
-
-t1 = Ti()
-t2 = Ti()
-t3 = Ti()
 
 
 def get_default_executor():
@@ -88,6 +57,12 @@ def get_default_executor():
     #     return Pool
 
 
+# @jit()
+# def cubetobox(x, d, box):
+#     return [box[i][0] + (box[i][1] - box[i][0]) * x[i] for i in range(d)]
+
+
+@ray.remote
 def search(
     f,
     box,
@@ -146,40 +121,19 @@ def search(
     def cubetobox(x):
         return [box[i][0] + (box[i][1] - box[i][0]) * x[i] for i in range(d)]
 
-    # box = np.array(box)
-
-    # # @njit(parallel=True)
-    # # not sure if faster with @jit
-    # @njit()
-    # def cubetobox(x):
-    #     r = np.empty(d, dtype=np.float64)
-    #     for i in range(d):
-    #         r[i] = box[i][0] + (box[i][1] - box[i][0]) * x[i]
-    #     return r
-
     # generating latin hypercube
     print("generating latin hypercube")
     points = np.zeros((n, d + 1))
-    t1.start()
     points[:, 0:-1] = latin(n, d)
-    t1.stop()
-    print("------", t1.cum)
-    t1.reset()
 
-    t1.start()
     # initial sampling
     print("initial sampling")
     for i in range(n // batch):
-        with executor() as e:
-            points[batch * i : batch * (i + 1), -1] = list(
-                e.map(
-                    f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1]))
-                )
-            )
-
-    t1.stop()
-    print("------", t1.cum)
-    t1.reset()
+        # with executor() as e:
+        points[batch * i : batch * (i + 1), -1] = list(
+            # e.map(f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])))
+            map(f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])))
+        )
 
     # normalizing function values
     print("normalizing function values")
@@ -289,15 +243,19 @@ def search(
     return points
 
 
+# @jit(parallel=True)
+# @jit()
 def fns(fit_noscale, population):
-    print(15)
+    print(14)
     r = list(map(fit_noscale, population[:, 0:-1]))
-    print(16)
+    print(15)
     return r
 
 
 # spread function
-@njit()
+# @jit(float64(int64, int64))
+# @jit(parallel=True)
+@jit()
 def spread(points, n):
     r = np.float64(0.0)
     for i in range(n):
@@ -307,8 +265,8 @@ def spread(points, n):
     return r
 
 
-# faster WITHOUT numba
-# @njit()
+@jit(forceobj=True)
+# @jit()
 def latin(n, d):
     """
     Build latin hypercube.
@@ -337,12 +295,9 @@ def latin(n, d):
     # starting with diagonal shape
     # lh = [[i / (n - 1.0)] * d for i in range(n)]
     lh = np.array([[i / (n - 1.0)] * d for i in range(n)])
-    # lh = np.empty((n, d), dtype=np.float64)
-    # for i in range(n):
-    #     for j in range(d):
-    #         lh[i, j] = i / (n - 1.0)
 
     # minimizing spread function by shuffling
+
     minspread = spread(lh, n)
 
     for i in range(1000):
@@ -359,6 +314,7 @@ def latin(n, d):
             minspread = newspread
 
         i += 1
+
     return lh
 
 
@@ -429,15 +385,25 @@ def rbf(points, T):
     #         + a
     #     )
 
-    @njit()
+    @jit()
     def fit(x):
-        r = np.empty(n, dtype=np.float64)
+        r = np.array([0.2])
+        r = np.delete(r, 0)
         for i in range(n):
-            a = np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1])))
-            r[i - 1] = lam[i] * (a * a * a)
-        s = np.sum(r) + np.dot(b, x) + a  # TODO move out side of function to parallize?
+            r = np.append(
+                r,
+                lam[i]
+                # * phi(np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1])))),
+                * (
+                    np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1])))
+                    * np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1])))
+                    * np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1])))
+                ),
+            )
+        s = np.sum(r) + np.dot(b, x) + a
         return s
 
     print(13)
-    print(14)
-    return fit
+    xx = fit
+    return xx
+
