@@ -27,6 +27,9 @@ from backtrader import Indicator
 import os
 
 import threading
+import ray
+
+ray.init()
 
 plotting = False
 
@@ -366,6 +369,8 @@ def BlackBoxParallelWalkForwardAnalysis(
     optimized_parameters = {}
     out_of_sample_result = {}
 
+    ray_ids = []
+    optimized_parameters_keys = []
     while optimization_end_date < end_date:
         params_to_optimize_ranges = get_params_to_optimize_ranges(
             optimization_params, optimization_start_date, optimization_end_date
@@ -391,21 +396,25 @@ def BlackBoxParallelWalkForwardAnalysis(
         )
 
         # Run optimization for in Sample Period.
-        optimized_params = bb.search(
-            f=OptFun,  # given function
-            # range of values for each parameter (2D case)
-            box=params_to_optimize_ranges,
-            # number of function calls on initial stage (global search)
-            n=param_n,
-            # number of function calls on subsequent stage (local search)
-            m=param_m,
-            batch=param_batch,  # number of calls that will be evaluated in parallel
-            resfile=os.getcwd() + "/output.csv",
+        # optimized_params = bb.search(
+        ray_ids.append(
+            bb.search_ray.remote(
+                f=OptFun,  # given function
+                # range of values for each parameter (2D case)
+                box=params_to_optimize_ranges,
+                # number of function calls on initial stage (global search)
+                n=param_n,
+                # number of function calls on subsequent stage (local search)
+                m=param_m,
+                batch=param_batch,  # number of calls that will be evaluated in parallel
+                resfile=os.getcwd() + "/output.csv",
+            )
         )
         # text file where results will be saved
 
         # Get the top 10 performing params for later analysis.
-        optimized_parameters[optimization_key] = optimized_params[0:20]
+        # optimized_parameters[optimization_key] = optimized_params[0:20]
+        optimized_parameters_keys.append(optimization_key)
 
         print(
             "Optimization for start date : "
@@ -434,6 +443,9 @@ def BlackBoxParallelWalkForwardAnalysis(
         testing_start_date += out_of_sample_period
         testing_end_date += out_of_sample_period
 
+    result = ray.get(ray_ids)
+    for i in range(len(result)):
+        optimized_parameters[optimized_parameters_keys[i]] = result[i][0:20]
     return {
         "optimized_parameters": optimized_parameters,
         "out_of_sample_result": out_of_sample_result,

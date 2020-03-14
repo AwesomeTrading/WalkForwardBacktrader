@@ -9,6 +9,8 @@ import datetime
 from numba import jit, njit, int64, float64
 
 import ray
+import pickle
+import os.path
 
 # def cpu_t(*args):
 #     p = psutil.#cpu_percent(interval=None, percpu=True)
@@ -23,11 +25,74 @@ import ray
 #     # thread.setDaemon(True)
 #     # thread.start()
 
-ray.init()
+# ray.init()
 
 # when installing conda statsmodels, i get 100% cpu, but its not really fatser
 # TODO make sure the values with numba are the same as without
 # TODO try ray
+
+# TESTING
+
+# npr = np.random.rand
+# npi = np.random.randint
+
+
+# class FakeNumpy:
+#     filename = "tmparr4.pck"
+#     random_array = []
+#     pos = 0
+#     first = False
+
+#     def __init__(self):
+#         if os.path.isfile(self.filename):
+#             self.load()
+#             self.first = False
+#         else:
+#             self.first = True
+
+#     # def realrand(self, *args):
+#     #     rand = npr(*args)
+#     #     self.random_array.append(rand)
+#     #     return rand
+
+#     # def realrand_i(self, *args):
+#     #     rand = npi(*args)
+#     #     self.random_array.append(rand)
+#     #     return rand
+
+#     def random(self, *args):
+#         if self.first:
+#             rand = self.realrand(*args)
+#         else:
+#             rand = self.random_array[self.pos]
+#             self.pos += 1
+#         return rand
+
+#     def randint(self, *args):
+#         if self.first:
+#             rand = self.realrand_i(*args)
+#         else:
+#             rand = self.random_array[self.pos]
+#             self.pos += 1
+#         return rand
+
+#     # def save(self):
+#     #     if not os.path.isfile(self.filename):
+#     #         outfile = open(self.filename, "wb")
+#     #         pickle.dump(self.random_array, outfile)
+#     #         outfile.close()
+
+#     def load(self):
+#         infile = open(self.filename, "rb")
+#         self.random_array = pickle.load(infile)
+#         infile.close()
+
+
+# fakenp = FakeNumpy()
+
+
+# np.random.rand = fakenp.random
+# np.random.randint = fakenp.randint
 
 
 class Ti:
@@ -86,6 +151,35 @@ def get_default_executor():
     #         pool.terminate()
 
     #     return Pool
+
+
+@ray.remote
+def search_ray(
+    f,
+    box,
+    n,
+    m,
+    batch,
+    resfile,
+    rho0=0.5,
+    p=1.0,
+    nrand=10000,
+    nrand_frac=0.05,
+    executor=get_default_executor(),
+):
+    return search(
+        f,
+        box,
+        n,
+        m,
+        batch,
+        resfile,
+        rho0=rho0,
+        p=p,
+        nrand=nrand,
+        nrand_frac=nrand_frac,
+        executor=executor,
+    )
 
 
 def search(
@@ -166,9 +260,10 @@ def search(
     t1.reset()
 
     @ray.remote
-    def is_r(i):
+    def cubetobox_r(i, p):
         return list(
-            map(f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])))
+            # map(f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])))
+            map(f, list(map(cubetobox, p)))
         )
 
     t1.start()
@@ -183,10 +278,12 @@ def search(
         #         )
         #     )
 
-        result_ids.append(is_r.remote(i))
+        result_ids.append(
+            cubetobox_r.remote(i, points[batch * i : batch * (i + 1), 0:-1])
+        )
+
     results = ray.get(result_ids)
-    print(results)
-    for i in range(n // batch):
+    for i in range(len(result_ids)):
         points[batch * i : batch * (i + 1), -1] = results[i]
 
     t1.stop()
@@ -213,17 +310,17 @@ def search(
     print("subsequent iterations (current subsequent iteration = i*batch+j)")
     T = np.identity(d)
 
-    @ray.remote
-    def is_r2(i, p):
-        return (
-            list(
-                map(
-                    f,
-                    list(map(cubetobox, p[n + batch * i : n + batch * (i + 1), 0:-1],)),
-                )
-            )
-            / fmax
-        )
+    # @ray.remote
+    # def is_r2(i, p):
+    #     return (
+    #         list(
+    #             map(
+    #                 f,
+    #                 list(map(cubetobox, p[n + batch * i : n + batch * (i + 1), 0:-1],)),
+    #             )
+    #         )
+    #         / fmax
+    #     )
 
     result_ids = []
     for i in range(m // batch):
@@ -234,8 +331,9 @@ def search(
             fit_noscale = rbf(points, np.identity(d))
             population = np.zeros((nrand, d + 1))
             population[:, 0:-1] = np.random.rand(nrand, d)
-            # population[:, -1] = list(map(fit_noscale, population[:, 0:-1]))
-            population[:, -1] = fns(fit_noscale, population)
+
+            population[:, -1] = list(map(fit_noscale, population[:, 0:-1]))
+            # population[:, -1] = fns(fit_noscale, population)
 
             cloud = population[population[:, -1].argsort()][
                 0 : int(nrand * nrand_frac), 0:-1
@@ -293,11 +391,12 @@ def search(
         #         / fmax
         #     )
 
-        result_ids.append(is_r2.remote(i, points))
+        result_ids.append(
+            cubetobox_r.remote(i, points[n + batch * i : n + batch * (i + 1), 0:-1])
+        )
+
     results = ray.get(result_ids)
-    print(results)
-    for i in range(m // batch):
-        print(results[i])
+    for i in range(len(result_ids)):
         points[n + batch * i : n + batch * (i + 1), -1] = results[i]
 
     # saving results into text file
@@ -318,14 +417,25 @@ def search(
         header="".join(labels),
         comments="",
     )
+
     return points
 
 
-def fns(fit_noscale, population):
-    print(15)
-    r = list(map(fit_noscale, population[:, 0:-1]))
-    print(16)
-    return r
+# @ray.remote
+# def fns_r(fit_noscale, population):
+#     return fit_noscale(population[:, 0:-1])
+
+
+# def fns(fit_noscale, population):
+#     print(15)
+#     # result_ids = []
+#     # for m in population[:, 0:-1]:
+#     #     result_ids.append(fns_r.remote(fit_noscale, population))
+#     r = list(map(fit_noscale, population[:, 0:-1]))
+#     print(16)
+#     # r = ray.get(result_ids)
+
+#     return r
 
 
 # spread function
@@ -394,6 +504,18 @@ def latin(n, d):
     return lh
 
 
+# @njit()
+# def phi(points, n, T):
+#     r = np.empty((1, n, n), dtype=np.float64)
+#     for i in range(n):
+#         for j in range(n):
+#             p = np.linalg.norm(np.dot(T, np.subtract(points[i, 0:-1], points[j, 0:-1])))
+#             r[0, i, j] = p * p * p
+#     return r
+
+
+# TODO test with NUMBA
+# @njit()
 def rbf(points, T):
     """
     Build RBF-fit for given points (see Holmstrom, 2008 for details) using scaling matrix.
@@ -414,19 +536,31 @@ def rbf(points, T):
     n = len(points)
     d = len(points[0]) - 1
 
-    def phi(r):
-        return r * r * r
+    # def phi(r):
+    #     return r * r * r
 
     print(1)
-    Phi = [
-        [
-            phi(
-                np.linalg.norm(np.dot(T, np.subtract(points[i, 0:-1], points[j, 0:-1])))
-            )
-            for j in range(n)
-        ]
-        for i in range(n)
-    ]
+
+    @njit()
+    def phi():
+        r = np.empty((1, n, n), dtype=np.float64)
+        for i in range(n):
+            for j in range(n):
+                p = np.linalg.norm(
+                    np.dot(T, np.subtract(points[i, 0:-1], points[j, 0:-1]))
+                )
+                r[0, i, j] = p * p * p
+        return r
+
+    # Phi = [
+    #     [
+    #         phi(
+    #             np.linalg.norm(np.dot(T, np.subtract(points[i, 0:-1], points[j, 0:-1])))
+    #         )
+    #         for j in range(n)
+    #     ]
+    #     for i in range(n)
+    # ]
 
     print(2)
     P = np.ones((n, d + 1))
@@ -437,7 +571,8 @@ def rbf(points, T):
     print(5)
     M = np.zeros((n + d + 1, n + d + 1))
     print(6)
-    M[0:n, 0:n] = Phi
+    # M[0:n, 0:n] = phi(points, n, T)
+    M[0:n, 0:n] = phi()
     print(7)
     M[0:n, n : n + d + 1] = P
     print(8)
@@ -466,7 +601,7 @@ def rbf(points, T):
         r = np.empty(n, dtype=np.float64)
         for i in range(n):
             a = np.linalg.norm(np.dot(T, np.subtract(x, points[i, 0:-1])))
-            r[i - 1] = lam[i] * (a * a * a)
+            r[i] = lam[i] * (a * a * a)
         s = np.sum(r) + np.dot(b, x) + a  # TODO move out side of function to parallize?
         return s
 

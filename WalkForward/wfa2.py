@@ -20,7 +20,7 @@ import time
 from datetime import timedelta
 import datetime
 from sklearn import linear_model
-import blackbox as bb
+import blackboxslow as bb
 import math
 from pprint import pprint
 from backtrader import Indicator
