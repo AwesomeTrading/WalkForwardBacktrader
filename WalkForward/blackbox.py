@@ -8,7 +8,7 @@ import datetime
 # import psutil
 from numba import jit, njit, int64, float64
 
-# import ray
+import ray
 
 # def cpu_t(*args):
 #     p = psutil.#cpu_percent(interval=None, percpu=True)
@@ -23,7 +23,7 @@ from numba import jit, njit, int64, float64
 #     # thread.setDaemon(True)
 #     # thread.start()
 
-# ray.init()
+ray.init()
 
 # when installing conda statsmodels, i get 100% cpu, but its not really fatser
 # TODO make sure the values with numba are the same as without
@@ -148,7 +148,6 @@ def search(
 
     # box = np.array(box)
 
-    # # @njit(parallel=True)
     # # not sure if faster with @jit
     # @njit()
     # def cubetobox(x):
@@ -166,16 +165,29 @@ def search(
     print("------", t1.cum)
     t1.reset()
 
+    @ray.remote
+    def is_r(i):
+        return list(
+            map(f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])))
+        )
+
     t1.start()
     # initial sampling
     print("initial sampling")
+    result_ids = []
     for i in range(n // batch):
-        with executor() as e:
-            points[batch * i : batch * (i + 1), -1] = list(
-                e.map(
-                    f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1]))
-                )
-            )
+        # with executor() as e:
+        #     points[batch * i : batch * (i + 1), -1] = list(
+        #         e.map(
+        #             f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1]))
+        #         )
+        #     )
+
+        result_ids.append(is_r.remote(i))
+    results = ray.get(result_ids)
+    print(results)
+    for i in range(n // batch):
+        points[batch * i : batch * (i + 1), -1] = results[i]
 
     t1.stop()
     print("------", t1.cum)
@@ -201,6 +213,19 @@ def search(
     print("subsequent iterations (current subsequent iteration = i*batch+j)")
     T = np.identity(d)
 
+    @ray.remote
+    def is_r2(i, p):
+        return (
+            list(
+                map(
+                    f,
+                    list(map(cubetobox, p[n + batch * i : n + batch * (i + 1), 0:-1],)),
+                )
+            )
+            / fmax
+        )
+
+    result_ids = []
     for i in range(m // batch):
 
         # refining scaling matrix T
@@ -252,21 +277,28 @@ def search(
             points[n + i * batch + j, 0:-1] = np.copy(minfit.x)
 
         print(" with executor() as e:")
-        with executor() as e:
-            points[n + batch * i : n + batch * (i + 1), -1] = (
-                list(
-                    e.map(
-                        f,
-                        list(
-                            map(
-                                cubetobox,
-                                points[n + batch * i : n + batch * (i + 1), 0:-1],
-                            )
-                        ),
-                    )
-                )
-                / fmax
-            )
+        # with executor() as e:
+        #     points[n + batch * i : n + batch * (i + 1), -1] = (
+        #         list(
+        #             e.map(
+        #                 f,
+        #                 list(
+        #                     map(
+        #                         cubetobox,
+        #                         points[n + batch * i : n + batch * (i + 1), 0:-1],
+        #                     )
+        #                 ),
+        #             )
+        #         )
+        #         / fmax
+        #     )
+
+        result_ids.append(is_r2.remote(i, points))
+    results = ray.get(result_ids)
+    print(results)
+    for i in range(m // batch):
+        print(results[i])
+        points[n + batch * i : n + batch * (i + 1), -1] = results[i]
 
     # saving results into text file
     print("saving results into text file")
@@ -308,7 +340,7 @@ def spread(points, n):
 
 
 # faster WITHOUT numba
-# @njit()
+# @jit()
 def latin(n, d):
     """
     Build latin hypercube.
