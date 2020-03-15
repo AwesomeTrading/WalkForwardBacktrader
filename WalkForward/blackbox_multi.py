@@ -34,16 +34,17 @@ import ray
 
 native = False
 fake = True
-roundit = False
-decimal_count = 5
+# roundit = False
+# decimal_count = 5
 
 rayit = True
 
-npfakefilename = "multi_1_nativefalse.pck"
+npfakefilename = "multi_3_numba_ray.pck"
 
-compare = True
+compare = False
 if compare:
     native = True
+
 npr = np.random.rand
 npi = np.random.randint
 
@@ -56,11 +57,12 @@ class FakeNumpy:
 
     def __init__(self, filename):
         self.filename = filename
-        if os.path.isfile(self.filename):
-            self.load()
-            self.first = False
-        else:
-            self.first = True
+        # if os.path.isfile(self.filename + str(0)):
+        #     # load for in and append if not ray
+        #     # self.load(0)
+        #     self.first = False
+        # else:
+        #     self.first = True
 
     def realrand(self, *args):
         # print("--------------------REAL")
@@ -90,18 +92,21 @@ class FakeNumpy:
             self.pos += 1
         return rand
 
-    def save(self):
-        if not os.path.isfile(self.filename):
-            outfile = open(self.filename, "wb")
+    def save(self, raypos):
+        if not os.path.isfile(self.filename + str(raypos)):
+            outfile = open(self.filename + str(raypos), "wb")
             pickle.dump(self.random_array, outfile)
             outfile.close()
             return True
         return False
 
-    def load(self):
-        infile = open(self.filename, "rb")
-        self.random_array = pickle.load(infile)
-        infile.close()
+    def load(self, raypos):
+        if os.path.isfile(self.filename + str(raypos)):
+            infile = open(self.filename + str(raypos), "rb")
+            self.random_array = pickle.load(infile)
+            infile.close()
+        else:
+            self.first = True
 
 
 if fake:
@@ -181,6 +186,7 @@ def search_ray(
     nrand=10000,
     nrand_frac=0.05,
     executor=get_default_executor(),
+    raypos=0,
 ):
     return search(
         f,
@@ -194,6 +200,7 @@ def search_ray(
         nrand=nrand,
         nrand_frac=nrand_frac,
         executor=executor,
+        raypos=raypos,
     )
 
 
@@ -209,6 +216,7 @@ def search(
     nrand=10000,
     nrand_frac=0.05,
     executor=get_default_executor(),
+    raypos=0,
 ):
     """
     Minimize given expensive black-box function and save results into text file.
@@ -240,13 +248,14 @@ def search(
         Allows the user to use various parallelisation tools
         as dask.distributed or pathos.
     """
-
+    fakenp.load(raypos)
     print("------------------- BLACKBOX RAYIT:", rayit)
     print("------------------- NATIVE:", native)
     print("------------------- FAKE:", fake)
-    print("------------------- ROUNDIT:", roundit)
-    print("------------------- ROUNDTO:", decimal_count)
+    # print("------------------- ROUNDIT:", roundit)
+    # print("------------------- ROUNDTO:", decimal_count)
     print("------------------- PICKLEFILE:", npfakefilename)
+    print("------------------- POSITION:", raypos)
 
     # space size
     d = len(box)
@@ -423,10 +432,11 @@ def search(
     print("------------------- BLACKBOX RAYIT:", rayit)
     print("------------------- NATIVE:", native)
     print("------------------- FAKE:", fake)
-    print("------------------- ROUNDIT:", roundit)
-    print("------------------- ROUNDTO:", decimal_count)
+    # print("------------------- ROUNDIT:", roundit)
+    # print("------------------- ROUNDTO:", decimal_count)
     print("------------------- PICKLEFILE:", npfakefilename)
-
+    print("------------------- POSITION:", raypos)
+    fakenp.save(raypos)
     return points
 
 
@@ -476,13 +486,9 @@ def latin(n, d):
             for j in range(n)
             if i > j
         )
-        if roundit:
-            pass
-            # r = round(r, decimal_count)
-            # r = np.round_(r, decimal_count)
         if compare:
+            print("COMPARE")
             numb = spread_jit(points, n)
-            # assert r == numb, f"SPREAD NOT EQUAL numba: {numb}; native:{r}"
             np.testing.assert_almost_equal(numb, r)
         return r
 
@@ -493,9 +499,6 @@ def latin(n, d):
             for j in range(n):
                 if i > j:
                     r = r + 1.0 / np.linalg.norm(np.subtract(points[i], points[j]))
-        if roundit:
-            pass
-            # r = np.round_(r, decimal_count)
         return r
 
     # starting with diagonal shape
@@ -582,8 +585,6 @@ def rbf(points, T):
                     np.dot(T, np.subtract(points[i, 0:-1], points[j, 0:-1]))
                 )
                 p = p * p * p
-                if roundit:
-                    p = np.round_(p, decimal_count)
                 r[i, j] = p
         return r
 
@@ -598,53 +599,21 @@ def rbf(points, T):
     # ]
 
     if native:
-        # if roundit:
-        #     Phi = [
-        #         [
-        #             round(
-        #                 phi(
-        #                     np.linalg.norm(
-        #                         np.dot(T, np.subtract(points[i, 0:-1], points[j, 0:-1]))
-        #                     )
-        #                 ),
-        #                 decimal_count,
-        #             )
-        #             for j in range(n)
-        #         ]
-        #         for i in range(n)
-        #     ]
-        if roundit:
-            pass
-            # Phi = [
-            #     [
-            #         np.round_(
-            #             phi(
-            #                 np.linalg.norm(
-            #                     np.dot(T, np.subtract(points[i, 0:-1], points[j, 0:-1]))
-            #                 )
-            #             ),
-            #             decimal_count,
-            #         )
-            #         for j in range(n)
-            #     ]
-            #     for i in range(n)
-            # ]
-        else:
-            Phi = [
-                [
-                    phi(
-                        np.linalg.norm(
-                            np.dot(T, np.subtract(points[i, 0:-1], points[j, 0:-1]))
-                        )
+        Phi = [
+            [
+                phi(
+                    np.linalg.norm(
+                        np.dot(T, np.subtract(points[i, 0:-1], points[j, 0:-1]))
                     )
-                    for j in range(n)
-                ]
-                for i in range(n)
+                )
+                for j in range(n)
             ]
+            for i in range(n)
+        ]
         if compare:
+            print("COMPARE")
             numb = phi_jit()
             numb = numb.tolist()
-            # assert numb == Phi, f"PHI NOT EQUAL \n numba:\n{numb}\n\n\nnative:\n{Phi}"
             np.testing.assert_almost_equal(numb, Phi)
 
     print(2)
@@ -693,21 +662,10 @@ def rbf(points, T):
             + np.dot(b, x)
             + a
         )
-        if roundit:
-            pass
-            # dc = str(r)[::-1].find(".")
-            # offset = int(dc * 0.3)  # the higher the fraction, the less digits
-            # # global decimal_count
-            # ndc = int(dc) - offset
-            # # r = round(r, decimal_count)
-            # r = np.round_(r, ndc)
-            # ndc = int(str(r)[::-1].find("."))
         if compare:
+            print("COMPARE")
             numb = fit_jit(x)
             np.testing.assert_almost_equal(numb, r)
-            # assert (
-            #     r == numb
-            # ), f"FIT NOT EQUAL numba: {numb}; native:{r}; decimal count: {ndc} {dc} {offset}"
         return r
 
     @njit()
@@ -719,9 +677,6 @@ def rbf(points, T):
         r = (
             np.sum(r) + np.dot(b, x) + a
         )  # TODO move out side of function to parallelize?
-        if roundit:
-            pass
-            # r = np.round_(r, dc)
         return r
 
     print(13)

@@ -33,15 +33,15 @@ import ray
 
 bb.fake = True  # uses or saves pickle file
 
-bb.native = True  # don't use numba optimized code
+bb.native = False  # don't use numba optimized code
 
-bb.compare = True
+bb.compare = False  # geht nicht???
 
-bb.roundit = False  # round values generated in rbf(points, T)
-bb.decimal_count = 10  # if round is True, round to these decimal places
+# bb.roundit = False  # round values generated in rbf(points, T)
+# bb.decimal_count = 10  # if round is True, round to these decimal places
 
-rayit = False  # use ray in this module
-bb.rayit = False  # use ray in the blackbox module instead of native threads
+rayit = True  # use ray in this module
+bb.rayit = True  # use ray in the blackbox module instead of native threads
 
 
 if rayit or bb.rayit:
@@ -52,8 +52,8 @@ print("------------------- RAYIT:", rayit)
 print("------------------- BLACKBOX RAYIT:", bb.rayit)
 print("------------------- NATIVE:", bb.native)
 print("------------------- FAKE:", bb.fake)
-print("------------------- ROUNDIT:", bb.roundit)
-print("------------------- ROUNDTO:", bb.decimal_count)
+# print("------------------- ROUNDIT:", bb.roundit)
+# print("------------------- ROUNDTO:", bb.decimal_count)
 print("------------------- PICKLEFILE:", bb.npfakefilename)
 
 
@@ -395,6 +395,7 @@ def BlackBoxParallelWalkForwardAnalysis(
     optimized_parameters = {}
     out_of_sample_result = {}
 
+    i = 0
     ray_ids = []
     optimized_parameters_keys = []
     while optimization_end_date < end_date:
@@ -433,6 +434,7 @@ def BlackBoxParallelWalkForwardAnalysis(
                 m=param_m,
                 batch=param_batch,  # number of calls that will be evaluated in parallel
                 resfile=os.getcwd() + "/output.csv",
+                raypos=i,
             )
             # text file where results will be saved
 
@@ -451,6 +453,7 @@ def BlackBoxParallelWalkForwardAnalysis(
                     m=param_m,
                     batch=param_batch,  # number of calls that will be evaluated in parallel
                     resfile=os.getcwd() + "/output.csv",
+                    raypos=i,
                 )
             )
             # text file where results will be saved
@@ -484,6 +487,7 @@ def BlackBoxParallelWalkForwardAnalysis(
 
         testing_start_date += out_of_sample_period
         testing_end_date += out_of_sample_period
+        i += 1
 
     if rayit:
         result = ray.get(ray_ids)
@@ -726,16 +730,16 @@ for ind, result in enumerate(interval_results_lastyear):
         if plotting:
             plt.plot(value_to_plot, label="equity_curve" + str(ind))
 
-fakenpsave = bb.fakenp.save()
+# fakenpsave = bb.fakenp.save()
 
 print("------------------- RAYIT:", rayit)
 print("------------------- BLACKBOX RAYIT:", bb.rayit)
 print("------------------- NATIVE:", bb.native)
 print("------------------- FAKE:", bb.fake)
-print("------------------- ROUNDIT:", bb.roundit)
-print("------------------- ROUNDTO:", bb.decimal_count)
+# print("------------------- ROUNDIT:", bb.roundit)
+# print("------------------- ROUNDTO:", bb.decimal_count)
 print("------------------- PICKLEFILE:", bb.npfakefilename)
-print("------------------- GENERATE PICKLEFILE:", fakenpsave)
+# print("------------------- GENERATE PICKLEFILE:", fakenpsave)
 
 print("Total time:", datetime.datetime.now() - time_start)
 
