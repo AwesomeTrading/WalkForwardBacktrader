@@ -27,15 +27,34 @@ from backtrader import Indicator
 import os
 
 import threading
+import ray
+
+# bb.npfakefilename = "TEST"
+
+bb.fake = True  # uses or saves pickle file
+
+bb.native = True  # don't use numba optimized code
+
+bb.compare = True
+
+bb.roundit = False  # round values generated in rbf(points, T)
+bb.decimal_count = 10  # if round is True, round to these decimal places
+
+rayit = False  # use ray in this module
+bb.rayit = False  # use ray in the blackbox module instead of native threads
 
 
-bb.native = True
-bb.fake = True
-bb.roundit = True
-bb.decimal_count = 5
+if rayit or bb.rayit:
+    ray.init()
 
-bb.rayit = False
-bb.raylocalonly = True
+
+print("------------------- RAYIT:", rayit)
+print("------------------- BLACKBOX RAYIT:", bb.rayit)
+print("------------------- NATIVE:", bb.native)
+print("------------------- FAKE:", bb.fake)
+print("------------------- ROUNDIT:", bb.roundit)
+print("------------------- ROUNDTO:", bb.decimal_count)
+print("------------------- PICKLEFILE:", bb.npfakefilename)
 
 
 plotting = False
@@ -55,114 +74,6 @@ candle_freq_to_seconds_map["15Min"] = 900
 candle_freq_to_seconds_map["1Hour"] = 3600
 candle_freq_to_seconds_map["4Hour"] = 14400
 candle_freq_to_seconds_map["6Hour"] = 21600
-
-
-class AcctStats(bt.Analyzer):
-    """A simple analyzer that gets the gain in the value of the account; should be self-explanatory"""
-
-    def __init__(self):
-        self.start_val = self.strategy.broker.get_value()
-        self.end_val = None
-
-    def stop(self):
-        self.end_val = self.strategy.broker.get_value()
-
-    def get_analysis(self):
-        return {"start": self.start_val, "end": self.end_val}
-
-
-class ValueStats(bt.Analyzer):
-    """A simple analyzer that gets the gain in the value of the account; should be self-explanatory"""
-
-    val = []
-
-    def __init__(self):
-        self.val = []
-
-    def next(self):
-        self.val.append(self.strategy.broker.get_value())
-
-    def get_analysis(self):
-        return self.val
-
-
-class LinearRegression(Indicator):
-    alias = ("LR",)
-
-    lines = ("linear_regression", "ma")
-    params = (("len", 300),)
-    iter = 0
-
-    def changeLen(self, length):
-        self.params.len = length
-
-    def next(self):
-        if self.iter > self.params.len:
-            raw_prices = self.data.get(size=self.params.len)
-            prices = np.array(raw_prices).reshape(-1, 1)
-            x_line = np.array([i for i in range(0, self.params.len)]).reshape(-1, 1)
-            # Create linear regression object
-            regr = linear_model.LinearRegression()
-            # Train the model using the training sets
-            regr.fit(x_line, prices)
-            prediction = regr.predict(np.array([self.params.len]).reshape(-1, 1))
-            self.lines.linear_regression[0] = prediction
-        self.iter += 1
-
-
-class MyStrategy(bt.Strategy):
-
-    def_params = (("linear_reg_length", 20),)
-
-    params = (
-        ("interval_params", [(999999999999999.0, def_params)]),
-        ("printlog", False),
-        ("usable_cash_ratio", 0.5),
-    )
-
-    def log(self, txt, dt=None, tm=None, doprint=False):
-        """ Logging function fot this strategy"""
-        if self.params.printlog or doprint:
-            dt = dt or self.datas[0].datetime.date(0)
-            tm = tm or self.datas[0].datetime.time(0)
-            print("%s, %s, %s" % (dt, tm, txt))
-
-    def get_params_for_time(self):
-        time_now_string = str(self.datas[0].datetime.date(0)).strip()
-        time_now = time.mktime(time.strptime(time_now_string, "%Y-%m-%d"))
-        if self.sorted_params[self.interval_index][0] < time_now:
-            self.interval_index += 1
-            self.log(
-                "Params changed to : " + str(self.sorted_params[self.interval_index][1])
-            )
-        return self.sorted_params[self.interval_index][1]
-
-    def __init__(self):
-        self.long = False
-        self.dataclose = self.datas[0].close
-        self.datalow = self.datas[0].low
-        self.sorted_params = sorted(self.params.interval_params)
-        self.cash_buffer = self.broker.getvalue() * self.params.usable_cash_ratio
-        self.interval_index = 0
-        self.params_to_use = self.sorted_params[self.interval_index][1]
-        self.LR_low_trend = LinearRegression(
-            self.datalow, len=self.params_to_use["linear_reg_length"]
-        )
-        self.LR_low_trend_to_use = self.LR_low_trend
-
-    def next(self):
-        self.params_to_use = self.get_params_for_time()
-        self.LR_low_trend.changeLen(self.params_to_use["linear_reg_length"])
-        if self.LR_low_trend_to_use < self.data.close and (not self.long):
-            self.size_to_buy = int(
-                (self.broker.getvalue() - self.cash_buffer) / self.dataclose[0]
-            )
-            self.order = self.buy(exectype=bt.Order.Market, size=self.size_to_buy)
-            self.long = True
-
-        elif self.LR_low_trend_to_use > self.data.close and self.long:
-            self.order = self.sell(exectype=bt.Order.Market, size=self.size_to_buy)
-            self.long = False
 
 
 def getData(start_timestamp, end_timestamp):
@@ -190,6 +101,110 @@ def RunBackTest(
     shouldPlot=False,
     shouldPrint=False,
 ):
+    class AcctStats(bt.Analyzer):
+        """A simple analyzer that gets the gain in the value of the account; should be self-explanatory"""
+
+        def __init__(self):
+            self.start_val = self.strategy.broker.get_value()
+            self.end_val = None
+
+        def stop(self):
+            self.end_val = self.strategy.broker.get_value()
+
+        def get_analysis(self):
+            return {"start": self.start_val, "end": self.end_val}
+
+    class ValueStats(bt.Analyzer):
+        """A simple analyzer that gets the gain in the value of the account; should be self-explanatory"""
+
+        val = []
+
+        def __init__(self):
+            self.val = []
+
+        def next(self):
+            self.val.append(self.strategy.broker.get_value())
+
+        def get_analysis(self):
+            return self.val
+
+    class LinearRegression(Indicator):
+        alias = ("LR",)
+
+        lines = ("linear_regression", "ma")
+        params = (("len", 300),)
+        iter = 0
+
+        def changeLen(self, length):
+            self.params.len = length
+
+        def next(self):
+            if self.iter > self.params.len:
+                raw_prices = self.data.get(size=self.params.len)
+                prices = np.array(raw_prices).reshape(-1, 1)
+                x_line = np.array([i for i in range(0, self.params.len)]).reshape(-1, 1)
+                # Create linear regression object
+                regr = linear_model.LinearRegression()
+                # Train the model using the training sets
+                regr.fit(x_line, prices)
+                prediction = regr.predict(np.array([self.params.len]).reshape(-1, 1))
+                self.lines.linear_regression[0] = prediction
+            self.iter += 1
+
+    class MyStrategy(bt.Strategy):
+
+        def_params = (("linear_reg_length", 20),)
+
+        params = (
+            ("interval_params", [(999999999999999.0, def_params)]),
+            ("printlog", False),
+            ("usable_cash_ratio", 0.5),
+        )
+
+        def log(self, txt, dt=None, tm=None, doprint=False):
+            """ Logging function fot this strategy"""
+            if self.params.printlog or doprint:
+                dt = dt or self.datas[0].datetime.date(0)
+                tm = tm or self.datas[0].datetime.time(0)
+                print("%s, %s, %s" % (dt, tm, txt))
+
+        def get_params_for_time(self):
+            time_now_string = str(self.datas[0].datetime.date(0)).strip()
+            time_now = time.mktime(time.strptime(time_now_string, "%Y-%m-%d"))
+            if self.sorted_params[self.interval_index][0] < time_now:
+                self.interval_index += 1
+                self.log(
+                    "Params changed to : "
+                    + str(self.sorted_params[self.interval_index][1])
+                )
+            return self.sorted_params[self.interval_index][1]
+
+        def __init__(self):
+            self.long = False
+            self.dataclose = self.datas[0].close
+            self.datalow = self.datas[0].low
+            self.sorted_params = sorted(self.params.interval_params)
+            self.cash_buffer = self.broker.getvalue() * self.params.usable_cash_ratio
+            self.interval_index = 0
+            self.params_to_use = self.sorted_params[self.interval_index][1]
+            self.LR_low_trend = LinearRegression(
+                self.datalow, len=self.params_to_use["linear_reg_length"]
+            )
+            self.LR_low_trend_to_use = self.LR_low_trend
+
+        def next(self):
+            self.params_to_use = self.get_params_for_time()
+            self.LR_low_trend.changeLen(self.params_to_use["linear_reg_length"])
+            if self.LR_low_trend_to_use < self.data.close and (not self.long):
+                self.size_to_buy = int(
+                    (self.broker.getvalue() - self.cash_buffer) / self.dataclose[0]
+                )
+                self.order = self.buy(exectype=bt.Order.Market, size=self.size_to_buy)
+                self.long = True
+
+            elif self.LR_low_trend_to_use > self.data.close and self.long:
+                self.order = self.sell(exectype=bt.Order.Market, size=self.size_to_buy)
+                self.long = False
 
     frame_to_add = getData(start_timestamp, end_timestamp)
 
@@ -380,6 +395,8 @@ def BlackBoxParallelWalkForwardAnalysis(
     optimized_parameters = {}
     out_of_sample_result = {}
 
+    ray_ids = []
+    optimized_parameters_keys = []
     while optimization_end_date < end_date:
         params_to_optimize_ranges = get_params_to_optimize_ranges(
             optimization_params, optimization_start_date, optimization_end_date
@@ -405,21 +422,41 @@ def BlackBoxParallelWalkForwardAnalysis(
         )
 
         # Run optimization for in Sample Period.
-        optimized_params = bb.search(
-            f=OptFun,  # given function
-            # range of values for each parameter (2D case)
-            box=params_to_optimize_ranges,
-            # number of function calls on initial stage (global search)
-            n=param_n,
-            # number of function calls on subsequent stage (local search)
-            m=param_m,
-            batch=param_batch,  # number of calls that will be evaluated in parallel
-            resfile=os.getcwd() + "/output.csv",
-        )
-        # text file where results will be saved
+        if not rayit:
+            optimized_params = bb.search(
+                f=OptFun,  # given function
+                # range of values for each parameter (2D case)
+                box=params_to_optimize_ranges,
+                # number of function calls on initial stage (global search)
+                n=param_n,
+                # number of function calls on subsequent stage (local search)
+                m=param_m,
+                batch=param_batch,  # number of calls that will be evaluated in parallel
+                resfile=os.getcwd() + "/output.csv",
+            )
+            # text file where results will be saved
 
-        # Get the top 10 performing params for later analysis.
-        optimized_parameters[optimization_key] = optimized_params[0:20]
+            # Get the top 10 performing params for later analysis.
+            optimized_parameters[optimization_key] = optimized_params[0:20]
+        else:
+            # Run optimization for in Sample Period.
+            ray_ids.append(
+                bb.search_ray.remote(
+                    f=OptFun,  # given function
+                    # range of values for each parameter (2D case)
+                    box=params_to_optimize_ranges,
+                    # number of function calls on initial stage (global search)
+                    n=param_n,
+                    # number of function calls on subsequent stage (local search)
+                    m=param_m,
+                    batch=param_batch,  # number of calls that will be evaluated in parallel
+                    resfile=os.getcwd() + "/output.csv",
+                )
+            )
+            # text file where results will be saved
+
+            # Get the top 10 performing params for later analysis.
+            optimized_parameters_keys.append(optimization_key)
 
         print(
             "Optimization for start date : "
@@ -447,6 +484,11 @@ def BlackBoxParallelWalkForwardAnalysis(
 
         testing_start_date += out_of_sample_period
         testing_end_date += out_of_sample_period
+
+    if rayit:
+        result = ray.get(ray_ids)
+        for i in range(len(result)):
+            optimized_parameters[optimized_parameters_keys[i]] = result[i][0:20]
 
     return {
         "optimized_parameters": optimized_parameters,
@@ -683,15 +725,17 @@ for ind, result in enumerate(interval_results_lastyear):
         end_values.append(value_to_plot[-1])
         if plotting:
             plt.plot(value_to_plot, label="equity_curve" + str(ind))
-bb.fakenp.save()
 
+fakenpsave = bb.fakenp.save()
+
+print("------------------- RAYIT:", rayit)
+print("------------------- BLACKBOX RAYIT:", bb.rayit)
 print("------------------- NATIVE:", bb.native)
 print("------------------- FAKE:", bb.fake)
 print("------------------- ROUNDIT:", bb.roundit)
 print("------------------- ROUNDTO:", bb.decimal_count)
-print("------------------- RAY:", bb.rayit)
-print("------------------- RAYLOCAL:", bb.raylocalonly)
 print("------------------- PICKLEFILE:", bb.npfakefilename)
+print("------------------- GENERATE PICKLEFILE:", fakenpsave)
 
 print("Total time:", datetime.datetime.now() - time_start)
 
