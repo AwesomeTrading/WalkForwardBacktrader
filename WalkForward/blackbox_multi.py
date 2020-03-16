@@ -39,7 +39,7 @@ fake = True
 
 rayit = True
 
-npfakefilename = "multi_3_numba_ray.pck"
+npfakefilename = "multi_4_numba.pck"
 
 compare = False
 if compare:
@@ -102,6 +102,7 @@ class FakeNumpy:
 
     def load(self, raypos):
         if os.path.isfile(self.filename + str(raypos)):
+            print("-------------", self.filename + str(raypos))
             infile = open(self.filename + str(raypos), "rb")
             self.random_array = pickle.load(infile)
             infile.close()
@@ -248,6 +249,8 @@ def search(
         Allows the user to use various parallelisation tools
         as dask.distributed or pathos.
     """
+    fakenp.pos = 0
+    fakenp.first = False
     fakenp.load(raypos)
     print("------------------- BLACKBOX RAYIT:", rayit)
     print("------------------- NATIVE:", native)
@@ -282,8 +285,8 @@ def search(
     t1.reset()
 
     @ray.remote
-    def cubetobox_r(i, p):
-        return list(map(f, list(map(cubetobox, p))))
+    def cubetobox_r(x):
+        return list(map(f, list(map(cubetobox, x))))
 
     t1.start()
     # initial sampling
@@ -300,11 +303,13 @@ def search(
                 )
         else:
             result_ids.append(
-                cubetobox_r.remote(i, points[batch * i : batch * (i + 1), 0:-1])
+                cubetobox_r.remote(points[batch * i : batch * (i + 1), 0:-1])
             )
+
     if rayit:
         results = ray.get(result_ids)
-        for i in range(len(result_ids)):
+        for i in range(n // batch):
+            # points[batch * i : batch * (i + 1), -1] = results[i]
             points[batch * i : batch * (i + 1), -1] = results[i]
 
     t1.stop()
@@ -383,9 +388,10 @@ def search(
                     break
             points[n + i * batch + j, 0:-1] = np.copy(minfit.x)
 
-        print(" with executor() as e:")
+        # print(" with executor() as e:")
         if not rayit:
             with executor() as e:
+                print(" with executor() as e:")
                 points[n + batch * i : n + batch * (i + 1), -1] = (
                     list(
                         e.map(
@@ -401,8 +407,10 @@ def search(
                     / fmax
                 )
         else:
+            print(" with ray:")
             result_ids.append(
-                cubetobox_r.remote(i, points[n + batch * i : n + batch * (i + 1), 0:-1])
+                cubetobox_r.remote(points[n + batch * i : n + batch * (i + 1), 0:-1])
+                # return list(map(f, list(map(cubetobox, p))))
             )
 
     if rayit:
