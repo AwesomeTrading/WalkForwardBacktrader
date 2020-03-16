@@ -6198,3 +6198,635 @@ max: 39.73304927425023
 python wfa2_multi.py  47,66s user 6,07s system 11% cpu 8:00,11 total
 
 ```
+
+<!--    blackbox ray run multi_5_native_executor_noray       -->
+
+# 50.
+
+## native - executor - fake - generate
+
+```
+------------------- BLACKBOX RAYIT: False
+------------------- NATIVE: True
+------------------- FAKE: True
+------------------- PICKLEFILE: multi_5_native_executor_noray.pck
+------------------- POSITION: 4
+Optimization for start date : 2018-06-29 01:00:00 to end date : 2019-01-15 00:00:00 is completed.
+testing dates for these optimization params are :
+testing start date: 2019-01-15 00:00:00
+testing end date: 2019-04-15 01:00:00
+2020-03-16 15:44:35
+Walk Forward Analysis Completed it took
+1796.3064053058624
+Seconds
+Doing 0 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 259}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 39}
+2019-04-15 01:00:00 {'linear_reg_length': 430}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 0th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 1 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 258}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 45}
+2019-04-15 01:00:00 {'linear_reg_length': 429}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 1th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 2 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 40}
+2019-04-15 01:00:00 {'linear_reg_length': 429}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 2th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 3 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 41}
+2019-04-15 01:00:00 {'linear_reg_length': 430}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 3th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 4 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 266}
+2018-10-17 01:00:00 {'linear_reg_length': 426}
+2019-01-15 00:00:00 {'linear_reg_length': 44}
+2019-04-15 01:00:00 {'linear_reg_length': 429}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 4th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 5 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 420}
+2018-10-17 01:00:00 {'linear_reg_length': 425}
+2019-01-15 00:00:00 {'linear_reg_length': 50}
+2019-04-15 01:00:00 {'linear_reg_length': 428}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 5th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 6 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 420}
+2018-10-17 01:00:00 {'linear_reg_length': 425}
+2019-01-15 00:00:00 {'linear_reg_length': 970}
+2019-04-15 01:00:00 {'linear_reg_length': 423}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 6th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 7 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 420}
+2018-10-17 01:00:00 {'linear_reg_length': 425}
+2019-01-15 00:00:00 {'linear_reg_length': 960}
+2019-04-15 01:00:00 {'linear_reg_length': 423}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 7th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 8 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 421}
+2018-10-17 01:00:00 {'linear_reg_length': 425}
+2019-01-15 00:00:00 {'linear_reg_length': 980}
+2019-04-15 01:00:00 {'linear_reg_length': 426}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 8th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 9 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 414}
+2018-10-17 01:00:00 {'linear_reg_length': 425}
+2019-01-15 00:00:00 {'linear_reg_length': 954}
+2019-04-15 01:00:00 {'linear_reg_length': 425}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 9th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+------------------- RAYIT: False
+------------------- BLACKBOX RAYIT: False
+------------------- NATIVE: True
+------------------- FAKE: True
+------------------- PICKLEFILE: multi_5_native_executor_noray.pck
+Total time: 0:30:20.167410
+[31.995640379685852, 28.938358550635762, 30.04366519055085, 29.0266095903558, 27.40153864223565, 46.85913015506082, 28.789884801170658, 27.11689904829563, 27.760110712075694, 25.607308843910577]
+average: 30.35391459139773
+min: 25.607308843910577
+max: 46.85913015506082
+python wfa2_multi.py  2406,90s user 106,72s system 138% cpu 30:21,40 total
+```
+
+# 51.
+
+shuold be same as 50, but it snot?? should generate new pickle and start over
+
+## native - executor - fake - verify
+
+```
+------------------- BLACKBOX RAYIT: False
+------------------- NATIVE: True
+------------------- FAKE: True
+------------------- PICKLEFILE: multi_5_native_executor_noray.pck
+------------------- POSITION: 4
+Optimization for start date : 2018-06-29 01:00:00 to end date : 2019-01-15 00:00:00 is completed.
+testing dates for these optimization params are :
+testing start date: 2019-01-15 00:00:00
+testing end date: 2019-04-15 01:00:00
+2020-03-16 16:25:05
+Walk Forward Analysis Completed it took
+1901.8839707374573
+Seconds
+Doing 0 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 49}
+2019-04-15 01:00:00 {'linear_reg_length': 429}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 0th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 1 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 40}
+2019-04-15 01:00:00 {'linear_reg_length': 430}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 1th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 2 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 56}
+2019-04-15 01:00:00 {'linear_reg_length': 428}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 2th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 3 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 50}
+2019-04-15 01:00:00 {'linear_reg_length': 425}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 3th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 4 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 50}
+2019-04-15 01:00:00 {'linear_reg_length': 423}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 4th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 5 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 256}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 954}
+2019-04-15 01:00:00 {'linear_reg_length': 424}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 5th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 6 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 256}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 960}
+2019-04-15 01:00:00 {'linear_reg_length': 423}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 6th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 7 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 420}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 952}
+2019-04-15 01:00:00 {'linear_reg_length': 423}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 7th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 8 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 420}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 950}
+2019-04-15 01:00:00 {'linear_reg_length': 423}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 8th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 9 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 420}
+2018-10-17 01:00:00 {'linear_reg_length': 425}
+2019-01-15 00:00:00 {'linear_reg_length': 963}
+2019-04-15 01:00:00 {'linear_reg_length': 418}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 9th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+------------------- RAYIT: False
+------------------- BLACKBOX RAYIT: False
+------------------- NATIVE: True
+------------------- FAKE: True
+------------------- PICKLEFILE: multi_5_native_executor_noray.pck
+Total time: 0:32:06.327918
+[33.83862981686575, 30.04366519055085, 33.9969896591208, 34.95894531520584, 35.48078032641078, 20.276592017450838, 20.44834720890579, 27.248239087880705, 27.248239087880705, 28.62993879669564]
+average: 29.21703665069677
+min: 20.276592017450838
+max: 35.48078032641078
+python wfa2_multi.py  2599,03s user 115,71s system 140% cpu 32:07,50 total
+
+```
+
+# 52.
+
+Is same as 51.
+
+## native - executor - fake - verify
+
+```
+------------------- BLACKBOX RAYIT: False
+------------------- NATIVE: True
+------------------- FAKE: True
+------------------- PICKLEFILE: multi_5_native_executor_noray.pck
+------------------- POSITION: 4
+Optimization for start date : 2018-06-29 01:00:00 to end date : 2019-01-15 00:00:00 is completed.
+testing dates for these optimization params are :
+testing start date: 2019-01-15 00:00:00
+testing end date: 2019-04-15 01:00:00
+2020-03-16 16:37:51
+Walk Forward Analysis Completed it took
+1890.4311027526855
+Seconds
+Doing 0 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 49}
+2019-04-15 01:00:00 {'linear_reg_length': 429}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 0th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 1 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 40}
+2019-04-15 01:00:00 {'linear_reg_length': 430}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 1th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 2 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 56}
+2019-04-15 01:00:00 {'linear_reg_length': 428}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 2th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 3 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 50}
+2019-04-15 01:00:00 {'linear_reg_length': 425}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 3th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 4 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 50}
+2019-04-15 01:00:00 {'linear_reg_length': 423}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 4th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 5 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 256}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 954}
+2019-04-15 01:00:00 {'linear_reg_length': 424}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 5th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 6 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 256}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 960}
+2019-04-15 01:00:00 {'linear_reg_length': 423}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 6th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 7 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 420}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 952}
+2019-04-15 01:00:00 {'linear_reg_length': 423}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 7th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 8 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 420}
+2018-10-17 01:00:00 {'linear_reg_length': 428}
+2019-01-15 00:00:00 {'linear_reg_length': 950}
+2019-04-15 01:00:00 {'linear_reg_length': 423}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 8th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 9 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 420}
+2018-10-17 01:00:00 {'linear_reg_length': 425}
+2019-01-15 00:00:00 {'linear_reg_length': 963}
+2019-04-15 01:00:00 {'linear_reg_length': 418}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 9th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+------------------- RAYIT: False
+------------------- BLACKBOX RAYIT: False
+------------------- NATIVE: True
+------------------- FAKE: True
+------------------- PICKLEFILE: multi_5_native_executor_noray.pck
+Total time: 0:31:54.972703
+[33.83862981686575, 30.04366519055085, 33.9969896591208, 34.95894531520584, 35.48078032641078, 20.276592017450838, 20.44834720890579, 27.248239087880705, 27.248239087880705, 28.62993879669564]
+average: 29.21703665069677
+min: 20.276592017450838
+max: 35.48078032641078
+python wfa2_multi.py  2599,92s user 113,85s system 141% cpu 31:56,60 total
+
+```
+
+# 53.
+
+should be same as 52.
+
+## native - bb ray - fake
+
+```
+
+```
+
+# 54.
+
+## numba - bb ray - fake
+
+```
+------------------- BLACKBOX RAYIT: True
+------------------- NATIVE: False
+------------------- FAKE: True
+------------------- PICKLEFILE: multi_5_native_executor_noray.pck
+------------------- POSITION: 4
+Optimization for start date : 2018-06-29 01:00:00 to end date : 2019-01-15 00:00:00 is completed.
+testing dates for these optimization params are :
+testing start date: 2019-01-15 00:00:00
+testing end date: 2019-04-15 01:00:00
+2020-03-16 16:51:53
+Walk Forward Analysis Completed it took
+498.48051023483276
+Seconds
+Doing 0 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 260}
+2018-10-17 01:00:00 {'linear_reg_length': 425}
+2019-01-15 00:00:00 {'linear_reg_length': 53}
+2019-04-15 01:00:00 {'linear_reg_length': 430}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 0th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 1 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 418}
+2018-10-17 01:00:00 {'linear_reg_length': 426}
+2019-01-15 00:00:00 {'linear_reg_length': 40}
+2019-04-15 01:00:00 {'linear_reg_length': 430}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 1th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 2 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 420}
+2018-10-17 01:00:00 {'linear_reg_length': 432}
+2019-01-15 00:00:00 {'linear_reg_length': 37}
+2019-04-15 01:00:00 {'linear_reg_length': 428}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 2th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 3 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 420}
+2018-10-17 01:00:00 {'linear_reg_length': 432}
+2019-01-15 00:00:00 {'linear_reg_length': 50}
+2019-04-15 01:00:00 {'linear_reg_length': 429}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 3th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 4 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 423}
+2018-10-17 01:00:00 {'linear_reg_length': 430}
+2019-01-15 00:00:00 {'linear_reg_length': 943}
+2019-04-15 01:00:00 {'linear_reg_length': 423}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 4th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 5 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 413}
+2018-10-17 01:00:00 {'linear_reg_length': 430}
+2019-01-15 00:00:00 {'linear_reg_length': 970}
+2019-04-15 01:00:00 {'linear_reg_length': 419}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 5th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 6 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 262}
+2018-10-17 01:00:00 {'linear_reg_length': 427}
+2019-01-15 00:00:00 {'linear_reg_length': 950}
+2019-04-15 01:00:00 {'linear_reg_length': 423}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 6th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 7 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 10}
+2018-07-19 01:00:00 {'linear_reg_length': 422}
+2018-10-17 01:00:00 {'linear_reg_length': 423}
+2019-01-15 00:00:00 {'linear_reg_length': 930}
+2019-04-15 01:00:00 {'linear_reg_length': 419}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 7th param has finished!
+Buffered Start Date was : 2018-01-18 08:00:00
+
+***********************************
+
+Doing 8 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 82}
+2018-07-19 01:00:00 {'linear_reg_length': 422}
+2018-10-17 01:00:00 {'linear_reg_length': 420}
+2019-01-15 00:00:00 {'linear_reg_length': 937}
+2019-04-15 01:00:00 {'linear_reg_length': 422}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 8th param has finished!
+Buffered Start Date was : 2018-01-06 08:00:00
+
+***********************************
+
+Doing 9 th best params
+The interval end dates and params are:
+2018-04-20 01:00:00 {'linear_reg_length': 80}
+2018-07-19 01:00:00 {'linear_reg_length': 417}
+2018-10-17 01:00:00 {'linear_reg_length': 420}
+2019-01-15 00:00:00 {'linear_reg_length': 980}
+2019-04-15 01:00:00 {'linear_reg_length': 422}
+Out of sample testing for start date 2018-01-20 00:00:00 and for the best : 9th param has finished!
+Buffered Start Date was : 2018-01-06 16:00:00
+
+***********************************
+
+------------------- RAYIT: False
+------------------- BLACKBOX RAYIT: True
+------------------- NATIVE: False
+------------------- FAKE: True
+------------------- PICKLEFILE: multi_5_native_executor_noray.pck
+Total time: 0:08:48.354482
+[32.146908097385776, 39.08208015295072, 37.91889461082077, 44.62619308952085, 27.236246911160706, 26.93157813047053, 19.263836101045772, 28.651167074690605, 38.27091844568535, 37.53609202870031]
+average: 33.16639146424314
+min: 19.263836101045772
+max: 44.62619308952085
+python wfa2_multi.py  454,81s user 105,08s system 105% cpu 8:52,53 total
+```
+
+# 55.
+
+## numba - full ray - fake
+
+```
+
+```
+
+<!--    blackbox ray run multi_6_numba_executor_noray       -->

@@ -20,28 +20,29 @@ import time
 from datetime import timedelta
 import datetime
 from sklearn import linear_model
-import blackbox_multi as bb
+import blackbox_multi2 as bb
 import math
 from pprint import pprint
 from backtrader import Indicator
 import os
 
 import threading
+from numba import jit, njit, int64, float64
 import ray
 
 # bb.npfakefilename = "TEST"
 
 bb.fake = True  # uses or saves pickle file
 
-bb.native = False  # don't use numba optimized code
+bb.native = True  # don't use numba optimized code
 
 bb.compare = False  # geht nicht???
 
 # bb.roundit = False  # round values generated in rbf(points, T)
 # bb.decimal_count = 10  # if round is True, round to these decimal places
 
-rayit = True  # use ray in this module
-bb.rayit = True  # use ray in the blackbox module instead of native threads
+rayit = False  # use ray in this module
+bb.rayit = False  # use ray in the blackbox module instead of native threads
 
 
 if rayit or bb.rayit:
@@ -434,7 +435,8 @@ def BlackBoxParallelWalkForwardAnalysis(
                 m=param_m,
                 batch=param_batch,  # number of calls that will be evaluated in parallel
                 resfile=os.getcwd() + "/output.csv",
-                raypos=i,
+                executor=bb.get_default_executor(),
+                sliceid=i,
             )
             # text file where results will be saved
 
@@ -453,7 +455,7 @@ def BlackBoxParallelWalkForwardAnalysis(
                     m=param_m,
                     batch=param_batch,  # number of calls that will be evaluated in parallel
                     resfile=os.getcwd() + "/output.csv",
-                    raypos=i,
+                    sliceid=i,
                 )
             )
             # text file where results will be saved

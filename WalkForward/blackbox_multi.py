@@ -6,7 +6,8 @@ import numpy as np
 import scipy.optimize as op
 import datetime
 
-# import threading
+import threading
+
 # import psutil
 from numba import jit, njit, int64, float64
 
@@ -32,18 +33,18 @@ import ray
 # when installing conda statsmodels, i get 100% cpu, but its not really fatser
 # TODO make sure the values with numba are the same as without
 
-native = False
+native = True
 fake = True
 # roundit = False
 # decimal_count = 5
 
-rayit = True
+rayit = False
 
-npfakefilename = "multi_4_numba.pck"
+npfakefilename = "multi_5_native_executor_noray.pck"
 
 compare = False
 if compare:
-    native = True
+    native = False
 
 npr = np.random.rand
 npi = np.random.randint
@@ -57,12 +58,6 @@ class FakeNumpy:
 
     def __init__(self, filename):
         self.filename = filename
-        # if os.path.isfile(self.filename + str(0)):
-        #     # load for in and append if not ray
-        #     # self.load(0)
-        #     self.first = False
-        # else:
-        #     self.first = True
 
     def realrand(self, *args):
         # print("--------------------REAL")
@@ -285,15 +280,27 @@ def search(
     t1.reset()
 
     @ray.remote
-    def cubetobox_r(x):
-        return list(map(f, list(map(cubetobox, x))))
+    def cubetobox_r(x, fmax=None):
+        if fmax:
+            return list(map(f, list(map(cubetobox, x)))) / fmax
+        else:
+            return list(map(f, list(map(cubetobox, x))))
 
     t1.start()
     # initial sampling
     print("initial sampling")
     result_ids = []
+    local1 = []
+    local2 = []
     for i in range(n // batch):
+        # if not rayit or compare:
+        #     points[batch * i : batch * (i + 1), -1] = list(
+        #         map(f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])),)
+        #     )
+        #     if compare:
+        #         local1.append(points[batch * i : batch * (i + 1), -1])
         if not rayit:
+            print("with e")
             with executor() as e:
                 points[batch * i : batch * (i + 1), -1] = list(
                     e.map(
@@ -301,7 +308,8 @@ def search(
                         list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])),
                     )
                 )
-        else:
+        if rayit:
+            print("with rayit")
             result_ids.append(
                 cubetobox_r.remote(points[batch * i : batch * (i + 1), 0:-1])
             )
@@ -311,6 +319,10 @@ def search(
         for i in range(n // batch):
             # points[batch * i : batch * (i + 1), -1] = results[i]
             points[batch * i : batch * (i + 1), -1] = results[i]
+            if compare:
+                local2.append(points[batch * i : batch * (i + 1), -1])
+    if compare:
+        np.testing.assert_almost_equal(local1, local2)
 
     t1.stop()
     print("------", t1.cum)
@@ -337,6 +349,10 @@ def search(
     T = np.identity(d)
 
     result_ids = []
+    local1 = []
+    local2 = []
+    l1 = []
+    l2 = []
     for i in range(m // batch):
 
         # refining scaling matrix T
@@ -392,31 +408,54 @@ def search(
         if not rayit:
             with executor() as e:
                 print(" with executor() as e:")
-                points[n + batch * i : n + batch * (i + 1), -1] = (
-                    list(
-                        e.map(
-                            f,
-                            list(
-                                map(
-                                    cubetobox,
-                                    points[n + batch * i : n + batch * (i + 1), 0:-1],
-                                )
-                            ),
-                        )
+            points[n + batch * i : n + batch * (i + 1), -1] = (
+                list(
+                    e.map(
+                        f,
+                        list(
+                            map(
+                                cubetobox,
+                                points[n + batch * i : n + batch * (i + 1), 0:-1],
+                            )
+                        ),
                     )
-                    / fmax
                 )
-        else:
+                / fmax
+            )
+        # if not rayit or compare:
+        #     print(" with executor() as e:")
+        #     points[n + batch * i : n + batch * (i + 1), -1] = (
+        #         list(
+        #             map(
+        #                 f,
+        #                 list(
+        #                     map(
+        #                         cubetobox,
+        #                         points[n + batch * i : n + batch * (i + 1), 0:-1],
+        #                     )
+        #                 ),
+        #             )
+        #         )
+        #         / fmax
+        #     )
+        #     if compare:
+        #         local1.append(points[n + batch * i : n + batch * (i + 1), -1])
+        if rayit:
             print(" with ray:")
             result_ids.append(
-                cubetobox_r.remote(points[n + batch * i : n + batch * (i + 1), 0:-1])
-                # return list(map(f, list(map(cubetobox, p))))
+                cubetobox_r.remote(
+                    points[n + batch * i : n + batch * (i + 1), 0:-1], fmax
+                )
             )
 
     if rayit:
         results = ray.get(result_ids)
-        for i in range(len(result_ids)):
+        for i in range(m // batch):
             points[n + batch * i : n + batch * (i + 1), -1] = results[i]
+            if compare:
+                local2.append(points[n + batch * i : n + batch * (i + 1), -1])
+    if compare:
+        np.testing.assert_almost_equal(local1, local2)
 
     # saving results into text file
     print("saving results into text file")
