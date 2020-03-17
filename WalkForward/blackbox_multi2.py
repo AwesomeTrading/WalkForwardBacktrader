@@ -35,15 +35,15 @@ import ray
 
 # TODO numba+ray https://github.com/numba/numba/issues/4256
 
-native = True
-fake = True
+native = False
+fake = False
 # roundit = False
 # decimal_count = 5
 
-rayit = False
+rayit = True
 
 
-npfakefilename = "multi_7_native_executor_noray.pck"
+npfakefilename = "multi_9_numba_bbray_noray.pck"
 
 compare = False
 if compare:
@@ -60,6 +60,7 @@ class FakeNumpy:
     first = False
 
     def __init__(self, filename):
+        print("-------------NEW FakeNumpy instance")
         self.filename = filename
 
     def realrand(self, *args):
@@ -203,6 +204,55 @@ def search_ray(
     )
 
 
+# def searchit(
+#     f,
+#     box,
+#     n,
+#     m,
+#     batch,
+#     resfile,
+#     rho0=0.5,
+#     p=1.0,
+#     nrand=10000,
+#     nrand_frac=0.05,
+#     # executor=get_default_executor(),
+#     executor=None,
+#     sliceid=None,
+# ):
+#     # space size
+#     d = len(box)
+
+#     # adjusting the number of function calls to the batch size
+#     print("adjusting the number of function calls to the batch size")
+#     if n % batch != 0:
+#         n = n - n % batch + batch
+
+#     if m % batch != 0:
+#         m = m - m % batch + batch
+
+#     # generating latin hypercube
+#     print("generating latin hypercube")
+#     points = np.zeros((n, d + 1))
+#     points[:, 0:-1] = latin(n, d)
+
+#     search(
+#         f=f,
+#         box=box,
+#         n=n,
+#         m=m,
+#         batch=batch,
+#         resfile=resfile,
+#         rho0=rho0,
+#         p=p,
+#         nrand=nrand,
+#         nrand_frac=nrand_frac,
+#         executor=executor,
+#         sliceid=sliceid,
+#         d=d,
+#         points=points,
+#     )
+
+
 def search(
     f,
     box,
@@ -217,6 +267,9 @@ def search(
     # executor=get_default_executor(),
     executor=None,
     sliceid=None,
+    d=None,
+    points=None,
+    rayit=True,
 ):
     """
     Minimize given expensive black-box function and save results into text file.
@@ -261,6 +314,7 @@ def search(
     print("------------------- PICKLEFILE:", npfakefilename)
     print("------------------- POSITION:", sliceid)
 
+    print(points)
     # space size
     d = len(box)
 
@@ -274,7 +328,9 @@ def search(
 
     # go from normalized values (unit cube) to absolute values (box)
     def cubetobox(x):
-        return [box[i][0] + (box[i][1] - box[i][0]) * x[i] for i in range(d)]
+        return np.round(
+            np.array([box[i][0] + (box[i][1] - box[i][0]) * x[i] for i in range(d)]), 4
+        ).tolist()
 
     # generating latin hypercube
     print("generating latin hypercube")
@@ -288,24 +344,47 @@ def search(
     @ray.remote
     def cubetobox_r(x, fmax=None):
         if fmax:
-            return list(map(f, list(map(cubetobox, x)))) / fmax
+            return np.round(
+                np.array(list(map(f, list(map(cubetobox, x)))) / fmax), 4
+            ).tolist()
         else:
-            return list(map(f, list(map(cubetobox, x))))
+            return np.round(np.array(list(map(f, list(map(cubetobox, x))))), 4).tolist()
 
     t1.start()
     # initial sampling
     print("initial sampling")
     result_ids = []
+    result_ids2 = []
+    points1 = np.copy(points)
+    points2 = np.copy(points)
     local1 = []
     local2 = []
+
     for i in range(n // batch):
-        # if not rayit or compare:
-        #     points[batch * i : batch * (i + 1), -1] = list(
-        #         map(f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])),)
-        #     )
-        #     if compare:
-        #         local1.append(points[batch * i : batch * (i + 1), -1])
+        # for i in range(2):
+        if rayit:
+            print("with rayit")
+            print(points, batch)
+            result_ids.append(
+                cubetobox_r.remote(points[batch * i : batch * (i + 1), 0:-1])
+            )
         if not rayit:
+            print("with normal")
+            points[batch * i : batch * (i + 1), -1] = list(
+                map(f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])),)
+            )
+            if compare:
+                local1.append(points[batch * i : batch * (i + 1), -1])
+                points1[batch * i : batch * (i + 1), -1] = list(
+                    map(
+                        f,
+                        list(
+                            map(cubetobox, points1[batch * i : batch * (i + 1), 0:-1])
+                        ),
+                    )
+                )
+        if not rayit:
+            # sometimes seems to hang here in the middle
             print("with e")
             with executor() as e:
                 points[batch * i : batch * (i + 1), -1] = list(
@@ -319,16 +398,45 @@ def search(
             result_ids.append(
                 cubetobox_r.remote(points[batch * i : batch * (i + 1), 0:-1])
             )
+        if compare:
+            result_ids2.append(
+                cubetobox_r.remote(points2[batch * i : batch * (i + 1), 0:-1])
+            )
 
     if rayit:
         results = ray.get(result_ids)
-        for i in range(n // batch):
+        for i in range(len(result_ids)):
             # points[batch * i : batch * (i + 1), -1] = results[i]
             points[batch * i : batch * (i + 1), -1] = results[i]
             if compare:
                 local2.append(points[batch * i : batch * (i + 1), -1])
     if compare:
-        np.testing.assert_almost_equal(local1, local2)
+        print("COMPARE")
+        # TEST each iteration
+        np.testing.assert_almost_equal(local1, local2, verbose=True)
+        np.testing.assert_equal(local1, local2, verbose=True)
+        np.testing.assert_array_equal(local1, local2, verbose=True)
+        # results2 = ray.get(result_ids2)
+        # for i in range(n // batch):
+        #     points2[batch * i : batch * (i + 1), -1] = results2[i]
+        # TEST all points
+        print(points1, "\n\n\n", points)
+        for i in range(len(points1)):
+            print(points1[i], "\nx", points[i])
+            for j in range(4):
+                print(points1[i][j], "\n", points[i][j])
+                if points1[i][j] != points[i][j]:
+                    print("cmp", points1[i][j], points[i][j])
+
+        # print(np.diff(points1[0], points[0]))
+        np.testing.assert_almost_equal(points1, points, verbose=True)
+        np.testing.assert_equal(points1, points, verbose=True)
+        np.testing.assert_array_equal(points1, points, verbose=True)
+
+        # results2 = ray.get(result_ids2)
+        # for i in range(n // batch):
+        #     points2[batch * i : batch * (i + 1), -1] = results2[i]
+        # np.testing.assert_almost_equal(points1, points2)
 
     t1.stop()
     print("------", t1.cum)
@@ -355,11 +463,13 @@ def search(
     T = np.identity(d)
 
     result_ids = []
+    result_ids2 = []
+    points1 = np.copy(points)  # NEEDS TO MOVE DOWN - TEST WITH EMPTY?
+    points2 = np.copy(points)  # NEEDS TO MOVE DOWN - TEST WITH EMPTY?
     local1 = []
     local2 = []
-    l1 = []
-    l2 = []
     for i in range(m // batch):
+        # for i in range(2):
 
         # refining scaling matrix T
         # TODO rayit ? prolly doesnt work with numba
@@ -412,41 +522,56 @@ def search(
             points[n + i * batch + j, 0:-1] = np.copy(minfit.x)
 
         # print(" with executor() as e:")
+        # if not rayit:
+        #     # seomtimes seems to hang here in the middle
+        #     with executor() as e:
+        #         print(" with executor() as e:")
+        #         points[n + batch * i : n + batch * (i + 1), -1] = (
+        #             list(
+        #                 e.map(
+        #                     f,
+        #                     list(
+        #                         map(
+        #                             cubetobox,
+        #                             points[n + batch * i : n + batch * (i + 1), 0:-1],
+        #                         )
+        #                     ),
+        #                 )
+        #             )
+        #             / fmax
+        #         )
         if not rayit:
-            with executor() as e:
-                print(" with executor() as e:")
-                points[n + batch * i : n + batch * (i + 1), -1] = (
+            print("with normal")
+            points[n + batch * i : n + batch * (i + 1), -1] = (
+                list(
+                    map(
+                        f,
+                        list(
+                            map(
+                                cubetobox,
+                                points[n + batch * i : n + batch * (i + 1), 0:-1],
+                            )
+                        ),
+                    )
+                )
+                / fmax
+            )
+            if compare:
+                local1.append(points[n + batch * i : n + batch * (i + 1), -1])
+                points1[n + batch * i : n + batch * (i + 1), -1] = (
                     list(
-                        e.map(
+                        map(
                             f,
                             list(
                                 map(
                                     cubetobox,
-                                    points[n + batch * i : n + batch * (i + 1), 0:-1],
+                                    points1[n + batch * i : n + batch * (i + 1), 0:-1],
                                 )
                             ),
                         )
                     )
                     / fmax
                 )
-        # if not rayit or compare:
-        #     print(" with executor() as e:")
-        #     points[n + batch * i : n + batch * (i + 1), -1] = (
-        #         list(
-        #             map(
-        #                 f,
-        #                 list(
-        #                     map(
-        #                         cubetobox,
-        #                         points[n + batch * i : n + batch * (i + 1), 0:-1],
-        #                     )
-        #                 ),
-        #             )
-        #         )
-        #         / fmax
-        #     )
-        #     if compare:
-        #         local1.append(points[n + batch * i : n + batch * (i + 1), -1])
         if rayit:
             print(" with ray:")
             result_ids.append(
@@ -454,21 +579,66 @@ def search(
                     points[n + batch * i : n + batch * (i + 1), 0:-1], fmax
                 )
             )
+            if compare:
+                result_ids2.append(
+                    cubetobox_r.remote(points2[batch * i : batch * (i + 1), 0:-1])
+                )
 
     if rayit:
         results = ray.get(result_ids)
-        for i in range(m // batch):
+        for i in range(len(result_ids)):
+            print("result", results[i])
             points[n + batch * i : n + batch * (i + 1), -1] = results[i]
             if compare:
                 local2.append(points[n + batch * i : n + batch * (i + 1), -1])
     if compare:
-        np.testing.assert_almost_equal(local1, local2)
+        print("COMPARE")
+        print(local1, "\n\n\n", local2)
+        np.testing.assert_almost_equal(local1, local2, verbose=True)
+        np.testing.assert_equal(local1, local2, verbose=True)
+        np.testing.assert_array_equal(local1, local2, verbose=True)
+        # results2 = ray.get(result_ids2)
+        # for i in range(m // batch):
+        #     points2[n + batch * i : n + batch * (i + 1), -1] = results2[i]
+        print(points1, "\n\n\n", points)
+        for i in range(len(points1)):
+            print(points1[i], "\nx", points[i])
+            for j in range(4):
+                print(points1[i][j], "\n", points[i][j])
+                if points1[i][j] != points[i][j]:
+                    print("cmp", points1[i][j], points[i][j])
+        np.testing.assert_almost_equal(points1, points, verbose=True)
+        np.testing.assert_equal(points1, points, verbose=True)
+        np.testing.assert_array_equal(points1, points, verbose=True)
 
     # saving results into text file
     print("saving results into text file")
     points[:, 0:-1] = list(map(cubetobox, points[:, 0:-1]))
     points[:, -1] = points[:, -1] * fmax
     points = points[points[:, -1].argsort()]
+
+    if compare:
+        print("---------compare POINTS")
+        points1[:, 0:-1] = list(map(cubetobox, points1[:, 0:-1]))
+        points1[:, -1] = points1[:, -1] * fmax
+        points1 = points1[points1[:, -1].argsort()]
+        print(points1, "\n\n\n", points)
+        for i in range(len(points1)):
+            print(points1[i], "\nx", points[i])
+            for j in range(4):
+                print(points1[i][j], "\n", points[i][j])
+                if points1[i][j] != points[i][j]:
+                    print("cmp", points1[i][j], points[i][j])
+        np.testing.assert_almost_equal(points, points1)
+        np.testing.assert_equal(points, points1)
+        np.testing.assert_array_equal(points, points1)
+
+        # points2[:, 0:-1] = list(map(cubetobox, points2[:, 0:-1]))
+        # points2[:, -1] = points2[:, -1] * fmax
+        # points2 = points2[points2[:, -1].argsort()]
+        # np.testing.assert_almost_equal(points, points2)
+        # np.testing.assert_equal(points, points2)
+        # np.testing.assert_array_equal(points, points2)
 
     labels = [
         " par_" + str(i + 1) + (7 - len(str(i + 1))) * " " + "," for i in range(d)
@@ -744,4 +914,3 @@ def rbf(points, T):
         return fit
     else:
         return fit_jit
-

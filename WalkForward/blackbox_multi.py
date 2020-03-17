@@ -732,4 +732,3 @@ def rbf(points, T):
         return fit
     else:
         return fit_jit
-

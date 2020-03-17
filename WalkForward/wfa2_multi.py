@@ -20,7 +20,7 @@ import time
 from datetime import timedelta
 import datetime
 from sklearn import linear_model
-import blackbox_multi2 as bb
+import blackbox_multi5 as bb
 import math
 from pprint import pprint
 from backtrader import Indicator
@@ -32,17 +32,17 @@ import ray
 
 # bb.npfakefilename = "TEST"
 
-bb.fake = True  # uses or saves pickle file
+bb.fake = False  # uses or saves pickle file
 
-bb.native = True  # don't use numba optimized code
+bb.native = False  # don't use numba optimized code
 
 bb.compare = False  # geht nicht???
 
 # bb.roundit = False  # round values generated in rbf(points, T)
 # bb.decimal_count = 10  # if round is True, round to these decimal places
 
-rayit = False  # use ray in this module
-bb.rayit = False  # use ray in the blackbox module instead of native threads
+rayit = True  # use ray in this module
+bb.rayit = True  # use ray in the blackbox module instead of native threads
 
 
 if rayit or bb.rayit:
