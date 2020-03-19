@@ -32,7 +32,7 @@ import ray
 
 # bb.npfakefilename = "TEST"
 
-bb.fake = False  # uses or saves pickle file
+bb.fake = True  # uses or saves pickle file
 
 bb.native = False  # don't use numba optimized code
 
@@ -41,8 +41,8 @@ bb.compare = False  # geht nicht???
 # bb.roundit = False  # round values generated in rbf(points, T)
 # bb.decimal_count = 10  # if round is True, round to these decimal places
 
-rayit = True  # use ray in this module
-bb.rayit = True  # use ray in the blackbox module instead of native threads
+rayit = False  # use ray in this module
+bb.rayit = False  # use ray in the blackbox module instead of native threads
 
 
 if rayit or bb.rayit:

@@ -36,14 +36,14 @@ import ray
 # TODO numba+ray https://github.com/numba/numba/issues/4256
 
 native = False
-fake = False
+fake = True
 # roundit = False
 # decimal_count = 5
 
-rayit = True
+rayit = False
 
 
-npfakefilename = "multi_9_numba_bbray_noray.pck"
+npfakefilename = "multi_7_native_executor_noray.pck"
 
 compare = False
 if compare:
@@ -269,7 +269,6 @@ def search(
     sliceid=None,
     d=None,
     points=None,
-    rayit=True,
 ):
     """
     Minimize given expensive black-box function and save results into text file.
@@ -342,9 +341,15 @@ def search(
     @ray.remote
     def cubetobox_r(ps, fm=None):
         if fm:
+            print("fm")
             return f(ps) / fm
         else:
+            print("nofm")
             return f(ps)
+
+    @ray.remote
+    def cubetobox_r2(fun, ps):
+        return list(map(fun, ps))
 
     t1.start()
     # initial sampling
@@ -359,17 +364,11 @@ def search(
     for i in range(n // batch):
         if not rayit:
             print("with normal")
-            points[batch * i : batch * (i + 1), -1] = list(
-                map(f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])),)
-            )
-            if compare:
-                local1.append(points[batch * i : batch * (i + 1), -1])
-                points1[batch * i : batch * (i + 1), -1] = list(
-                    map(
+            with executor() as e:
+                points[batch * i : batch * (i + 1), -1] = list(
+                    e.map(
                         f,
-                        list(
-                            map(cubetobox, points1[batch * i : batch * (i + 1), 0:-1])
-                        ),
+                        list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])),
                     )
                 )
         # if not rayit:
@@ -384,15 +383,25 @@ def search(
         #         )
         if rayit:
             print("with ray")
-            # points = self.initial_sampling(points=points, box=box, d=d)
             result_ids = []
-            aa = list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1],))
+            cubetobox_results = list(
+                map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])
+            )
 
-            for qq in aa:
-                result_ids.append(cubetobox_r.remote(qq))
-            results = ray.get(result_ids)
-            points[batch * i : batch * (i + 1), -1] = results
+            for cr in cubetobox_results:
+                result_ids.append(cubetobox_r.remote(cr))
 
+            points[batch * i : batch * (i + 1), -1] = ray.get(result_ids)
+    #     if rayit:
+    #         result_ids.append(
+    #             cubetobox_r2(
+    #                 f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])),
+    #             )
+    #         )
+    # if rayit:
+    #     results = ray.get(result_ids)
+    #     for i in range(n // batch):
+    #         points[batch * i : batch * (i + 1), -1] = results[i]
     t1.stop()
     print("------", t1.cum)
     t1.reset()
@@ -422,8 +431,8 @@ def search(
 
         # refining scaling matrix T
         # TODO rayit ? prolly doesnt work with numba
-        print("refining scaling matrix T")
         if d > 1:
+            print("refining scaling matrix T")
             fit_noscale = rbf(points, np.identity(d))
             population = np.zeros((nrand, d + 1))
             population[:, 0:-1] = np.random.rand(nrand, d)
@@ -491,33 +500,32 @@ def search(
         #         )
         if not rayit:
             print("with normal")
-            points[n + batch * i : n + batch * (i + 1), -1] = (
-                list(
-                    map(
-                        f,
-                        list(
-                            map(
-                                cubetobox,
-                                points[n + batch * i : n + batch * (i + 1), 0:-1],
-                            )
-                        ),
+            with executor() as e:
+                points[n + batch * i : n + batch * (i + 1), -1] = (
+                    list(
+                        e.map(
+                            f,
+                            list(
+                                map(
+                                    cubetobox,
+                                    points[n + batch * i : n + batch * (i + 1), 0:-1],
+                                )
+                            ),
+                        )
                     )
+                    / fmax
                 )
-                / fmax
-            )
         if rayit:
             result_ids = []
             print(" with ray:")
-            aa = list(
-                map(cubetobox, points[n + batch * i : n + batch * (i + 1), 0:-1,],)
+            cubetobox_results = list(
+                map(cubetobox, points[n + batch * i : n + batch * (i + 1), 0:-1])
             )
 
-            for qq in aa:
-                result_ids.append(cubetobox_r.remote(qq))
-            # cubetobox_r.remote(points[n + batch * i : n + batch * (i + 1), 0:-1], i, box, d, fmax)
+            for cr in cubetobox_results:
+                result_ids.append(cubetobox_r.remote(cr, fmax))
 
-            results = ray.get(result_ids)
-            points[n + batch * i : n + batch * (i + 1), -1] = results
+            points[n + batch * i : n + batch * (i + 1), -1] = ray.get(result_ids)
 
     # saving results into text file
     print("saving results into text file")
@@ -591,7 +599,6 @@ def latin(n, d):
     #     )
 
     def spread(points):
-        print("native spread")
         r = sum(
             1.0 / np.linalg.norm(np.subtract(points[i], points[j]))
             for i in range(n)
