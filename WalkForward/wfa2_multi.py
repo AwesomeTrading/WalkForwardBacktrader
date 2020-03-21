@@ -20,7 +20,11 @@ import time
 from datetime import timedelta
 import datetime
 from sklearn import linear_model
-import blackbox_multi5 as bb
+import blackbox_multi5 as bb0
+import blackbox_multi5 as bb1
+import blackbox_multi5 as bb2
+import blackbox_multi5 as bb3
+import blackbox_multi5 as bb4
 import math
 from pprint import pprint
 from backtrader import Indicator
@@ -30,31 +34,21 @@ import threading
 from numba import jit, njit, int64, float64
 import ray
 
-# bb.npfakefilename = "TEST"
+import pickle
+import copy
 
-bb.fake = True  # uses or saves pickle file
+for i in range(5):
+    bb = globals()[f"bb{i}"]
+    bb.fake = True  # uses or saves pickle file
+    bb.native = False  # don't use numba optimized code
 
-bb.native = False  # don't use numba optimized code
-
-bb.compare = False  # geht nicht???
-
-# bb.roundit = False  # round values generated in rbf(points, T)
-# bb.decimal_count = 10  # if round is True, round to these decimal places
-
-rayit = False  # use ray in this module
-bb.rayit = False  # use ray in the blackbox module instead of native threads
+    bb.compare = False
+    bb.rayit = True  # use ray in the blackbox module instead of native threads
 
 
-if rayit or bb.rayit:
+rayit = True  # use ray in this mo
+if rayit or bb0.rayit:
     ray.init()
-
-
-print("------------------- RAYIT:", rayit)
-print("------------------- BLACKBOX RAYIT:", bb.rayit)
-print("------------------- NATIVE:", bb.native)
-print("------------------- FAKE:", bb.fake)
-# print("------------------- ROUNDIT:", bb.roundit)
-# print("------------------- ROUNDTO:", bb.decimal_count)
 print("------------------- PICKLEFILE:", bb.npfakefilename)
 
 
@@ -375,6 +369,51 @@ def getOptimizedParamsBlackBox(optimized_params):
     return params
 
 
+class Verify:
+    filename = ""
+
+    def __init__(self, filename):
+        print("-------------NEW FakeNumpy instance")
+        self.filename = filename
+
+    def save(self, points, idx):
+        if not os.path.isfile(self.filename + str(idx)):
+            outfile = open(self.filename + str(idx), "wb")
+            pickle.dump(points, outfile)
+            outfile.close()
+            return True
+        return False
+
+    def load(self, idx):
+        print("load", idx)
+        if os.path.isfile(self.filename + str(idx)):
+            infile = open(self.filename + str(idx), "rb")
+            from_pickle = pickle.load(infile)
+            infile.close()
+            return from_pickle
+        else:
+            return None
+
+    def check(
+        self, new_points, idx,
+    ):
+        print("INCHECKING")
+        saved_points = self.load(idx)
+        print(idx, saved_points, "\n\n", idx, new_points)
+        if isinstance(saved_points, list):
+            if len(saved_points) > 0:
+                print(
+                    "------------------- CHECKING POINTS -------------------------------"
+                )
+                np.testing.assert_array_equal(saved_points, new_points)
+                return True
+        else:
+            return None
+
+
+ver = Verify("points_2_multi_10_numba_bbray_noray.pck")
+
+
 def BlackBoxParallelWalkForwardAnalysis(
     start_date,
     end_date,
@@ -400,6 +439,8 @@ def BlackBoxParallelWalkForwardAnalysis(
     ray_ids = []
     optimized_parameters_keys = []
     while optimization_end_date < end_date:
+        # bbc = copy.deepcopy(bb)
+        bb = globals()[f"bb{i}"]
         params_to_optimize_ranges = get_params_to_optimize_ranges(
             optimization_params, optimization_start_date, optimization_end_date
         )
@@ -463,6 +504,10 @@ def BlackBoxParallelWalkForwardAnalysis(
             # Get the top 10 performing params for later analysis.
             optimized_parameters_keys.append(optimization_key)
 
+        if not rayit:
+            ver.check(optimized_params[0:20], i)
+            ver.save(optimized_params[0:20], i)
+
         print(
             "Optimization for start date : "
             + str(optimization_start_date_key)
@@ -492,9 +537,15 @@ def BlackBoxParallelWalkForwardAnalysis(
         i += 1
 
     if rayit:
+        print(
+            "------------------------------------------------------------------------------------------------------",
+            ray_ids,
+        )
         result = ray.get(ray_ids)
         for i in range(len(result)):
             optimized_parameters[optimized_parameters_keys[i]] = result[i][0:20]
+            ver.check(result[i][0:20], i)
+            ver.save(result[i][0:20], i)
 
     return {
         "optimized_parameters": optimized_parameters,

@@ -40,10 +40,10 @@ fake = True
 # roundit = False
 # decimal_count = 5
 
-rayit = False
+rayit = True
 
 
-npfakefilename = "multi_7_native_executor_noray.pck"
+npfakefilename = "multi_10_numba_bbray_ray.pck"
 
 compare = False
 if compare:
@@ -101,10 +101,10 @@ class FakeNumpy:
 
     def load(self, raypos):
         if os.path.isfile(self.filename + str(raypos)):
-            print("-------------", self.filename + str(raypos))
             infile = open(self.filename + str(raypos), "rb")
             self.random_array = pickle.load(infile)
             infile.close()
+            print(raypos, self.random_array)
         else:
             self.first = True
 
@@ -174,83 +174,8 @@ def get_default_executor():
 
 
 @ray.remote
-def search_ray(
-    f,
-    box,
-    n,
-    m,
-    batch,
-    resfile,
-    rho0=0.5,
-    p=1.0,
-    nrand=10000,
-    nrand_frac=0.05,
-    executor=None,
-    sliceid=None,
-):
-    return search(
-        f,
-        box,
-        n,
-        m,
-        batch,
-        resfile,
-        rho0=rho0,
-        p=p,
-        nrand=nrand,
-        nrand_frac=nrand_frac,
-        executor=executor,
-        sliceid=sliceid,
-    )
-
-
-# def searchit(
-#     f,
-#     box,
-#     n,
-#     m,
-#     batch,
-#     resfile,
-#     rho0=0.5,
-#     p=1.0,
-#     nrand=10000,
-#     nrand_frac=0.05,
-#     # executor=get_default_executor(),
-#     executor=None,
-#     sliceid=None,
-# ):
-#     # space size
-#     d = len(box)
-
-#     # adjusting the number of function calls to the batch size
-#     print("adjusting the number of function calls to the batch size")
-#     if n % batch != 0:
-#         n = n - n % batch + batch
-
-#     if m % batch != 0:
-#         m = m - m % batch + batch
-
-#     # generating latin hypercube
-#     print("generating latin hypercube")
-#     points = np.zeros((n, d + 1))
-#     points[:, 0:-1] = latin(n, d)
-
-#     search(
-#         f=f,
-#         box=box,
-#         n=n,
-#         m=m,
-#         batch=batch,
-#         resfile=resfile,
-#         rho0=rho0,
-#         p=p,
-#         nrand=nrand,
-#         nrand_frac=nrand_frac,
-#         executor=executor,
-#         sliceid=sliceid,
-#         d=d,
-#         points=points,
-#     )
+def search_ray(*args, **kwargs):
+    return search(*args, **kwargs)
 
 
 def search(
@@ -267,8 +192,6 @@ def search(
     # executor=get_default_executor(),
     executor=None,
     sliceid=None,
-    d=None,
-    points=None,
 ):
     """
     Minimize given expensive black-box function and save results into text file.
@@ -313,7 +236,6 @@ def search(
     print("------------------- PICKLEFILE:", npfakefilename)
     print("------------------- POSITION:", sliceid)
 
-    print(points)
     # space size
     d = len(box)
 
@@ -347,33 +269,14 @@ def search(
             print("nofm")
             return f(ps)
 
-    @ray.remote
-    def cubetobox_r2(fun, ps):
-        return list(map(fun, ps))
-
     t1.start()
     # initial sampling
     print("initial sampling")
-    # result_ids = []
-    # result_ids2 = []
-    # points1 = np.copy(points)
-    # points2 = np.copy(points)
-    # local1 = []
-    # local2 = []
 
+    result_ids = {}
     for i in range(n // batch):
-        if not rayit:
-            print("with normal")
-            with executor() as e:
-                points[batch * i : batch * (i + 1), -1] = list(
-                    e.map(
-                        f,
-                        list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])),
-                    )
-                )
         # if not rayit:
-        #     # sometimes seems to hang here in the middle
-        #     print("with e")
+        #     print("with normal")
         #     with executor() as e:
         #         points[batch * i : batch * (i + 1), -1] = list(
         #             e.map(
@@ -381,27 +284,30 @@ def search(
         #                 list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])),
         #             )
         #         )
+        if not rayit:
+            # sometimes seems to hang here in the middle
+            print("without e")
+            # with executor() as e:
+            points[batch * i : batch * (i + 1), -1] = list(
+                map(f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])),)
+            )
         if rayit:
             print("with ray")
-            result_ids = []
+            # result_ids = []
+            result_ids[str(i)] = []
             cubetobox_results = list(
                 map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])
             )
 
             for cr in cubetobox_results:
-                result_ids.append(cubetobox_r.remote(cr))
+                result_ids[str(i)].append(cubetobox_r.remote(cr))
 
-            points[batch * i : batch * (i + 1), -1] = ray.get(result_ids)
-    #     if rayit:
-    #         result_ids.append(
-    #             cubetobox_r2(
-    #                 f, list(map(cubetobox, points[batch * i : batch * (i + 1), 0:-1])),
-    #             )
-    #         )
-    # if rayit:
-    #     results = ray.get(result_ids)
-    #     for i in range(n // batch):
-    #         points[batch * i : batch * (i + 1), -1] = results[i]
+            # points[batch * i : batch * (i + 1), -1] = ray.get(result_ids)
+    if rayit:
+
+        for i in range(n // batch):
+            points[batch * i : batch * (i + 1), -1] = ray.get(result_ids[str(i)])
+
     t1.stop()
     print("------", t1.cum)
     t1.reset()
@@ -500,23 +406,24 @@ def search(
         #         )
         if not rayit:
             print("with normal")
-            with executor() as e:
-                points[n + batch * i : n + batch * (i + 1), -1] = (
-                    list(
-                        e.map(
-                            f,
-                            list(
-                                map(
-                                    cubetobox,
-                                    points[n + batch * i : n + batch * (i + 1), 0:-1],
-                                )
-                            ),
-                        )
+            # with executor() as e:
+            points[n + batch * i : n + batch * (i + 1), -1] = (
+                list(
+                    map(
+                        f,
+                        list(
+                            map(
+                                cubetobox,
+                                points[n + batch * i : n + batch * (i + 1), 0:-1],
+                            )
+                        ),
                     )
-                    / fmax
                 )
+                / fmax
+            )
         if rayit:
             result_ids = []
+            # result_ids[str(i)] = []
             print(" with ray:")
             cubetobox_results = list(
                 map(cubetobox, points[n + batch * i : n + batch * (i + 1), 0:-1])
@@ -527,6 +434,11 @@ def search(
 
             points[n + batch * i : n + batch * (i + 1), -1] = ray.get(result_ids)
 
+    # if rayit:
+    #     for i in range(m // batch):
+    #         points[n + batch * i : n + batch * (i + 1), -1] = ray.get(
+    #             result_ids[str(i)]
+    #         )
     # saving results into text file
     print("saving results into text file")
     points[:, 0:-1] = list(map(cubetobox, points[:, 0:-1]))
@@ -536,15 +448,15 @@ def search(
     labels = [
         " par_" + str(i + 1) + (7 - len(str(i + 1))) * " " + "," for i in range(d)
     ] + [" f_value    "]
-    print(points)
-    np.savetxt(
-        resfile,
-        points,
-        delimiter=",",
-        fmt=" %+1.4e",
-        header="".join(labels),
-        comments="",
-    )
+
+    # np.savetxt(
+    #     resfile,
+    #     points,
+    #     delimiter=",",
+    #     fmt=" %+1.4e",
+    #     header="".join(labels),
+    #     comments="",
+    # )
 
     print("------------------- BLACKBOX RAYIT:", rayit)
     print("------------------- NATIVE:", native)
